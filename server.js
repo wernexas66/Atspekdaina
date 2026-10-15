@@ -7,30 +7,31 @@ const norm=x=>(x||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 // Deezer leidžia ~50 užklausų per 5 s, todėl jas siunčiame po vieną
 let chain=Promise.resolve();
-function dz(p){
-  const run=async()=>{for(let i=0;i<3;i++){await sleep(120);let j;try{j=await(await fetch(DZ+p)).json()}catch(e){return{}}if(j.error&&j.error.code===4){await sleep(2500);continue}return j}return{}};
-  const r=chain.then(run);chain=r.catch(()=>{});return r;
-}
+async function raw(p){for(let i=0;i<3;i++){let j;try{j=await(await fetch(DZ+p)).json()}catch(e){return{}}if(j.error&&j.error.code===4){await sleep(2500);continue}return j}return{}}
+// prio=true: svarbi užklausa (dabartinė daina, paieška) – nelaukia fono eilėje
+function dz(p,prio){if(prio)return raw(p);const r=chain.then(async()=>{await sleep(120);return raw(p)});chain=r.catch(()=>{});return r}
 process.on("unhandledRejection",e=>console.log("Klaida:",e&&e.message));
 const cache=new Map();
 const HTMLS=new Map();
 async function cached(k,fn,ttl){const c=cache.get(k);if(c&&Date.now()-c.t<ttl)return c.v;const v=await fn();if(v!=null&&!(Array.isArray(v)&&!v.length))cache.set(k,{t:Date.now(),v});return v}
 const findArtist=n=>cached("a:"+norm(n),async()=>{
-  const l=((await dz("/search/artist?limit=5&q="+encodeURIComponent(n))).data)||[];
+  const l=((await dz("/search/artist?limit=5&q="+encodeURIComponent(n),true)).data)||[];
   const ex=l.filter(a=>norm(a.name)===norm(n));
   const a=(ex.length?ex:l).sort((x,y)=>(y.nb_fan||0)-(x.nb_fan||0))[0];
   return a?{id:a.id,name:a.name}:null;
 },864e5);
-// Visos atlikėjo dainos (populiariausios + paieška), tik kur jis pagrindinis atlikėjas
-const liveTracks=name=>cached("t:"+norm(name),async()=>{
-  const a=await findArtist(name);if(!a)return[];
-  const top=await dz(`/artist/${a.id}/top?limit=100`);
-  const se=await dz("/search?limit=100&q="+encodeURIComponent(`artist:"${a.name}"`));
-  const se2=await dz("/search?limit=100&index=100&q="+encodeURIComponent(`artist:"${a.name}"`));
-  const ab=[];  // visų albumų ir singlų dainos
-  const albs=((await dz(`/artist/${a.id}/albums?limit=100`)).data)||[];
-  for(const al of albs){const t=((await dz(`/album/${al.id}/tracks?limit=100`)).data)||[];
-    for(const x of t)ab.push({...x,album:{id:al.id,title:al.title,cover_medium:al.cover_medium,cover_big:al.cover_big}});}
+// Dainos tik iš pasirinkto atlikėjo: greitas sąrašas iškart, pilnas (visi albumai) kraunamas fone
+async function build(a,deep){
+  const P=!deep; // greitos užklausos eina be eilės
+  const top=await dz(`/artist/${a.id}/top?limit=100`,P);
+  const se=await dz("/search?limit=100&q="+encodeURIComponent(`artist:"${a.name}"`),P);
+  const ab=[];let se2={};
+  if(deep){
+    se2=await dz("/search?limit=100&index=100&q="+encodeURIComponent(`artist:"${a.name}"`));
+    const albs=((await dz(`/artist/${a.id}/albums?limit=100`)).data)||[];
+    for(const al of albs){const t=((await dz(`/album/${al.id}/tracks?limit=100`)).data)||[];
+      for(const x of t)ab.push({...x,album:{id:al.id,title:al.title,cover_medium:al.cover_medium,cover_big:al.cover_big}});}
+  }
   const seen=new Set(),out=[];
   [...ab,...(top.data||[]),...(se.data||[]),...(se2.data||[])].forEach(x=>{
     if(!x.artist||x.artist.id!==a.id)return;
@@ -38,7 +39,17 @@ const liveTracks=name=>cached("t:"+norm(name),async()=>{
     out.push({id:x.id,title,artist:a.name,cover:x.album&&(x.album.cover_medium||x.album.cover),coverBig:x.album&&(x.album.cover_big||x.album.cover_xl),album:x.album&&x.album.title,albumId:x.album&&x.album.id});
   });
   return out;
+}
+const crawling=new Set();
+function crawl(a,name){
+  if(crawling.has(a.id))return;crawling.add(a.id);
+  build(a,true).then(out=>{if(out.length){cache.set("t:"+norm(name),{t:Date.now(),v:out});pmemo.clear()}}).catch(()=>{}).finally(()=>crawling.delete(a.id));
+}
+const liveTracks=name=>cached("t:"+norm(name),async()=>{
+  const a=await findArtist(name);if(!a)return[];
+  const out=await build(a,false);crawl(a,name);return out;
 },36e5);
+const deepTracks=async name=>{const a=await findArtist(name);return a?build(a,true):[]};
 // songs.json: iš anksto surinktos dainos (paleisk "node server.js --build" savo kompiuteryje) – svetainė startuoja iškart
 let SNAP={};try{const j=JSON.parse(fs.readFileSync(path.join(__dirname,"songs.json"),"utf8"));for(const k in j)SNAP[norm(k)]=j[k];console.log("Įkelta iš songs.json:",Object.keys(SNAP).length,"atlikėjų")}catch(e){}
 const tracksOf=name=>SNAP[norm(name)]?Promise.resolve(SNAP[norm(name)]):liveTracks(name);
@@ -55,7 +66,7 @@ async function round(names,daily,cover,id,album){
   const rnd=daily?seeded(day):Math.random;
   let i=id?Math.max(0,p.findIndex(x=>String(x.id)===id)):Math.floor(rnd()*p.length);
   for(let k=0;k<10;k++,i=(i+1)%p.length){
-    const f=await dz("/track/"+p[i].id); // šviežia peržiūros nuoroda (jos greitai nebegalioja)
+    const f=await dz("/track/"+p[i].id,true); // šviežia peržiūros nuoroda (jos greitai nebegalioja)
     if(f.preview)return{id:f.id,title:f.title_short||f.title,artist:p[i].artist,cover:f.album&&(f.album.cover_medium||f.album.cover),coverBig:f.album&&(f.album.cover_big||f.album.cover_xl),album:f.album&&f.album.title,albumId:f.album&&f.album.id,preview:f.preview,start:rnd()*14};
   }
   throw new Error("Nepavyko rasti dainos");
@@ -74,7 +85,7 @@ const server=http.createServer(async(req,res)=>{
   try{
     if(u.pathname==="/api/artists")return send(res,200,ARTISTS);
     if(u.pathname==="/api/artist"){const a=await findArtist(q.get("name")||"");return a?send(res,200,a):send(res,404,{error:"Atlikėjas nerastas"})}
-    if(u.pathname==="/api/artistsearch"){const l=((await dz("/search/artist?limit=6&q="+encodeURIComponent(q.get("q")||""))).data)||[];return send(res,200,l.map(a=>({id:a.id,name:a.name,picture:a.picture_small})))}
+    if(u.pathname==="/api/artistsearch"){const l=((await dz("/search/artist?limit=6&q="+encodeURIComponent(q.get("q")||""),true)).data)||[];return send(res,200,l.map(a=>({id:a.id,name:a.name,picture:a.picture_small})))}
     if(u.pathname==="/api/stats"){const o={};for(const n of ARTISTS)o[n]=(await tracksOf(n)).length;return send(res,200,o)}
     if(u.pathname==="/api/pool"){const p=await pool(names);return send(res,200,{t:p.map(x=>x.id),a:[...new Set(p.filter(x=>x.albumId).map(x=>x.albumId))]})}
     if(u.pathname==="/api/round")return send(res,200,await round(names,q.get("daily")==="1",q.get("mode")==="cover",q.get("id"),q.get("album")));
@@ -89,6 +100,6 @@ const server=http.createServer(async(req,res)=>{
     res.writeHead(200,{"Content-Type":"text/html; charset=utf-8","Cache-Control":"no-cache",...(gz?{"Content-Encoding":"gzip"}:{})});res.end(gz?H.gz:H.raw);
   }catch(e){send(res,500,{error:e.message})}
 });
-if(process.argv.includes("--build")){(async()=>{const o={};for(const n of ARTISTS){o[n]=await liveTracks(n);console.log(n+":",o[n].length)}
+if(process.argv.includes("--build")){(async()=>{const o={};for(const n of ARTISTS){o[n]=await deepTracks(n);console.log(n+":",o[n].length)}
   fs.writeFileSync(path.join(__dirname,"songs.json"),JSON.stringify(o));console.log("Išsaugota songs.json");process.exit(0)})();}
 else server.listen(PORT,()=>{console.log("Atidaryk http://localhost:"+PORT);if(Object.keys(SNAP).length<ARTISTS.length)pool(ARTISTS).then(p=>console.log("Paruošta dainų:",p.length)).catch(()=>{})});
