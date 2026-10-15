@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="lt">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Atspėk dainą</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0b1b28;--bg2:#10293b;--panel:#143247;--line:#24506b;--ink:#f3efe3;--mute:#8fa9ba;--amber:#f2b441;--ok:#7bd6a0;--bad:#ef7664}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;color:var(--ink);font-family:"Bricolage Grotesque",system-ui,sans-serif;background:radial-gradient(900px 500px at 80% -10%,#1b4561 0,transparent 60%),var(--bg);padding:28px 16px 40px}
+main{max-width:640px;margin:0 auto}
+header{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;margin-bottom:22px}
+h1{font-size:clamp(2.2rem,8vw,3.4rem);line-height:.95;margin:0;font-weight:800;letter-spacing:-.04em}
+.score{text-align:right;color:var(--mute);font-size:.9rem}.score b{display:block;font-size:1.8rem;color:var(--amber);line-height:1}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:22px}
+.chip{border:1px solid var(--line);background:transparent;color:var(--mute);padding:6px 12px;border-radius:99px;cursor:pointer;font-size:.85rem}
+.chip[aria-pressed=true]{background:var(--amber);border-color:var(--amber);color:#1b1405;font-weight:600}
+.chips form{display:flex}.chips input{width:150px;border-radius:99px 0 0 99px;padding:6px 12px;font-size:.85rem}
+.chips form button{border-radius:0 99px 99px 0;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:0 12px;cursor:pointer}
+input[type=text]{background:var(--bg2);border:1px solid var(--line);color:var(--ink);font:inherit;padding:14px 16px;border-radius:12px;width:100%}
+:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+.stage{background:var(--bg2);border:1px solid var(--line);border-radius:20px;padding:22px 18px 16px}
+.wave{display:flex;gap:8px;height:96px;align-items:center}
+.seg{flex:1;display:flex;gap:2px;align-items:center;height:100%}
+.b{flex:1;height:calc(var(--h)*100%);min-height:6px;border-radius:3px;background:#1d4058;transition:background .3s}
+.seg.lit .b{background:var(--amber)}
+.seg.lit.cur.playing .b{animation:p .5s ease-in-out infinite alternate;animation-delay:calc(var(--i)*40ms)}
+@keyframes p{to{transform:scaleY(.45)}}
+.labels{display:flex;gap:8px;margin:8px 0 18px;color:var(--mute);font-size:.78rem}.labels span{flex:1;text-align:center}.labels .cur{color:var(--amber);font-weight:600}
+.ctrl{display:flex;align-items:center;gap:14px}
+#play{width:68px;height:68px;border-radius:50%;border:0;background:var(--amber);color:#1b1405;font-size:1.6rem;cursor:pointer;flex:none}
+#play:disabled{opacity:.4;cursor:wait}
+.ctrl .grow{flex:1;display:flex;flex-direction:column;gap:8px}
+.vol{display:flex;gap:10px;align-items:center;color:var(--mute);font-size:.85rem}.vol input{flex:1;accent-color:var(--amber)}
+#skip{background:transparent;border:1px solid var(--line);color:var(--ink);border-radius:12px;padding:12px 16px;cursor:pointer;font:inherit}
+.guess{position:relative;margin-top:18px}
+#sugg{list-style:none;margin:6px 0 0;padding:4px;background:var(--panel);border:1px solid var(--line);border-radius:12px;position:absolute;left:0;right:0;z-index:5;max-height:300px;overflow:auto}
+#sugg li{display:flex;gap:10px;align-items:center;padding:8px;border-radius:8px;cursor:pointer}
+#sugg li:hover,#sugg li:focus{background:#1c4560}#sugg img{width:40px;height:40px;border-radius:6px}#sugg small{color:var(--mute);display:block}
+.tries{margin:12px 0 0;display:flex;flex-direction:column;gap:6px}
+.try{color:var(--bad);font-size:.9rem;text-decoration:line-through;opacity:.85}
+.reveal{margin-top:18px;display:flex;gap:16px;align-items:center;background:var(--panel);border-radius:16px;padding:14px}
+.reveal img{width:96px;height:96px;border-radius:10px}.reveal h2{margin:0 0 2px;font-size:1.3rem}.reveal p{margin:0;color:var(--mute)}
+.reveal .res{font-weight:800;margin-bottom:6px}.ok{color:var(--ok)}.bad{color:var(--bad)}
+.next{margin-top:12px;width:100%;padding:16px;border:0;border-radius:14px;background:var(--amber);color:#1b1405;font:inherit;font-weight:800;font-size:1.05rem;cursor:pointer}
+.err{color:var(--bad);margin:10px 0}
+footer{margin-top:28px;color:var(--mute);font-size:.8rem;text-align:center}footer a{color:var(--mute)}
+[hidden]{display:none!important}
+@media (prefers-reduced-motion:reduce){.seg .b{animation:none!important}}
+html{background:#0a1824}body{background:none}
+.bg{position:fixed;inset:0;z-index:-1;overflow:hidden;background:radial-gradient(700px 520px at 88% -6%,#1f5f78 0,transparent 60%),radial-gradient(820px 620px at -12% 108%,#6a4513 0,transparent 55%),linear-gradient(180deg,#09161f,#0b2233)}
+.seg.playing .b{animation:p .5s ease-in-out infinite alternate;animation-delay:calc(var(--i)*40ms)}
+.share{background:transparent;border:1px solid var(--line);color:var(--ink);font-weight:600}
+.chip.daily{border-color:var(--amber);color:var(--amber)}
+.track{position:relative;height:32px;border-radius:10px;background:#0a1a26;border:1px solid var(--line);overflow:hidden}
+.track .unl{position:absolute;left:0;top:0;bottom:0;width:0;background:#1d4a64;transition:width .3s}
+.track .fill{position:absolute;left:0;top:0;bottom:0;width:0;background:var(--amber)}
+.track i{position:absolute;top:0;bottom:0;width:2px;background:var(--bg);z-index:2}
+.marker{position:relative;height:42px;margin-bottom:12px}
+.marker #mk{position:absolute;top:2px;text-align:center;color:var(--amber);font-weight:700;font-size:.85rem;line-height:1.15}
+#nextSong{background:transparent;border:1px solid var(--line);color:var(--ink);border-radius:12px;padding:12px 16px;cursor:pointer;font:inherit}
+.ctrl{flex-wrap:wrap}
+.chip .x{margin-left:6px;opacity:.55}.chip:hover .x{opacity:1}
+#sugg li.sel{background:#1c4560;box-shadow:inset 3px 0 0 var(--amber)}
+.chips{margin-bottom:12px}
+.corner{position:absolute;top:14px;right:14px;z-index:10}
+.addform{position:relative;max-width:280px;margin-bottom:22px}
+.addform input{padding:10px 16px;border-radius:99px;font-size:.9rem}
+#asugg{list-style:none;margin:6px 0 0;padding:4px;background:var(--panel);border:1px solid var(--line);border-radius:12px;position:absolute;left:0;right:0;z-index:6;max-height:260px;overflow:auto}
+#asugg li{display:flex;gap:10px;align-items:center;padding:8px;border-radius:8px;cursor:pointer}
+#asugg li.sel{background:#1c4560;box-shadow:inset 3px 0 0 var(--amber)}
+#asugg img{width:32px;height:32px;border-radius:50%}
+.modes{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap}
+.modes button{border:1px solid var(--line);background:transparent;color:var(--mute);padding:8px 14px;border-radius:99px;cursor:pointer;font:inherit}
+.modes button.on{background:var(--ink);color:#0b1b28;border-color:var(--ink);font-weight:700}
+.covbox{display:none;width:min(100%,320px);aspect-ratio:1;margin:0 auto 16px;border-radius:16px;overflow:hidden;background:var(--bg2)}
+.covbox img{width:100%;height:100%;object-fit:cover;transition:filter .6s,transform .6s}
+[data-mode=cover] .covbox{display:block}
+[data-mode=cover] .track,[data-mode=cover] .marker,[data-mode=cover] #play,[data-mode=cover] .vol{display:none}
+.clock{margin-bottom:14px;font-weight:800;font-size:1.25rem;display:flex;flex-direction:column;gap:6px}
+.cbar{height:6px;border-radius:3px;background:var(--bg);overflow:hidden}.cbar i{display:block;height:100%;background:var(--amber);width:100%}
+.flash{margin:0 0 12px;padding:8px 12px;border-radius:10px;background:var(--panel);font-size:.95rem}
+button,input{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.track .fill{width:100%;transform:scaleX(0);transform-origin:left;will-change:transform}
+.addform input{font-size:16px}
+@media (max-width:520px){
+ body{padding:56px 12px 28px}
+ .corner{top:10px;right:10px;font-size:.78rem;padding:5px 10px}
+ .stage{padding:16px 12px 12px;border-radius:16px}
+ h1{font-size:2.3rem}
+ #play{width:64px;height:64px}
+ .ctrl{gap:10px}#skip,#nextSong{flex:1;padding:14px 10px}
+ .reveal img{width:72px;height:72px}
+ #sugg,#asugg{max-height:34vh}
+ .chip{padding:8px 12px}
+}
+.rev{position:relative;background:var(--panel);border-radius:20px;padding:24px 16px 18px;text-align:center;margin-top:4px}
+.rev .big{width:min(62%,240px);aspect-ratio:1;object-fit:cover;border-radius:18px;box-shadow:0 12px 40px #0008}
+.was{display:block;margin:14px 0 4px;color:var(--bad);font-family:ui-monospace,Menlo,monospace;letter-spacing:.12em;font-size:.75rem}
+.rev h2{margin:0;font-size:clamp(1.5rem,6vw,2.1rem);letter-spacing:-.02em;line-height:1.1}
+.rev p{margin:6px 0 10px;color:var(--mute)}
+.stamp{position:absolute;top:14px;right:12px;transform:rotate(8deg);border:2px solid;padding:2px 8px;font-weight:800;font-size:.8rem;letter-spacing:.08em;border-radius:4px;background:#0b1b28cc}
+.stamp.ok{color:var(--ok)}.stamp.bad{color:var(--bad)}
+.pts{display:inline-block;margin:2px 0 12px;padding:6px 16px;border-radius:99px;background:var(--amber);color:#1b1405;font-weight:800;animation:pts .5s cubic-bezier(.2,1.6,.4,1)}
+@keyframes pts{from{transform:scale(.4);opacity:0}}
+.pp{display:block;margin:0 auto 10px;padding:12px 22px;border-radius:99px;border:1px solid var(--line);background:var(--bg2);color:var(--ink);font:inherit;font-weight:700;cursor:pointer}
+.dl{display:block;margin-bottom:16px;color:var(--ok);font-size:.95rem}
+.two{display:flex;gap:8px}.two .next{margin-top:0;flex:1}
+#score.pop{animation:sc .5s}@keyframes sc{40%{transform:scale(1.5)}}
+.pips{display:none;align-items:center;gap:6px;justify-content:center;margin:-4px 0 14px;color:var(--mute);font-size:.85rem}
+.pips i{width:10px;height:10px;border-radius:50%;background:#1d4058}.pips i.on{background:var(--amber)}.pips span{margin-left:8px}
+[data-mode=cover] .pips{display:flex}
+#fx{position:fixed;inset:0;pointer-events:none;z-index:50}
+@media (prefers-reduced-motion:reduce){.pts,#score.pop{animation:none}}
+.addform{margin-bottom:10px}
+.artbtns{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 22px}
+.artbtns button{background:transparent;border:1px solid var(--line);color:var(--mute);padding:6px 12px;border-radius:99px;cursor:pointer;font:inherit;font-size:.8rem}
+.artbtns button:hover{color:var(--ink)}
+.pot{color:var(--amber);font-size:.85rem;margin-top:10px;text-align:center}
+.hintbox{margin-top:12px;padding:10px 12px;border-radius:10px;background:var(--panel);font-size:.95rem;display:flex;flex-direction:column;gap:4px;letter-spacing:.04em}
+.rcount{margin-bottom:12px;color:var(--mute);font-size:.9rem}
+.lock{color:var(--amber)!important}
+#hint{background:transparent;border:1px solid var(--line);color:var(--ink);border-radius:12px;padding:12px 14px;cursor:pointer;font:inherit}
+#hint:disabled,#skip:disabled{opacity:.45;cursor:default}
+@media (max-width:520px){#hint{flex:1;padding:14px 10px}}
+</style>
+</head>
+<body>
+<div class="bg" aria-hidden="true"></div>
+<button class="chip daily corner" id="dailyBtn" aria-pressed="false">📅 Dienos daina</button>
+<canvas id="fx"></canvas>
+<main>
+  <header>
+    <h1>Atspėk<br>dainą</h1>
+    <div class="score"><b id="score">0</b>taškai · serija <span id="streak">0</span> · rekordas <span id="best">0</span></div>
+  </header>
+  <div class="modes" id="modes"><button data-m="clip" class="on">🎧 Klipai</button><button data-m="cover">🖼️ Viršeliai</button><button data-m="speed">⚡ 60 s</button><button data-m="rounds">🏆 10 raundų</button></div>
+  <div class="chips" id="chips" aria-label="Atlikėjai"></div>
+  <div class="addform"><input type="text" id="aq" placeholder="+ Pridėti atlikėją" aria-label="Pridėti atlikėją" autocomplete="off"><ul id="asugg" hidden></ul></div>
+  <div class="artbtns"><button id="clearAll">🗑 Pašalinti visus</button><button id="resetAll">↺ Numatytieji</button></div>
+
+  <section class="stage" id="game" data-mode="clip">
+    <div class="clock" id="clock" hidden><span id="ct"></span><div class="cbar"><i id="cb"></i></div></div>
+    <div class="covbox"><img id="cov" alt="Albumo viršelis"></div>
+    <div class="pips" id="pips"></div>
+    <div class="flash" id="flash" hidden></div>
+    <div class="rcount" id="rc" hidden></div>
+    <div class="track" id="track"><div class="unl" id="unl"></div><div class="fill" id="fill"></div></div>
+    <div class="marker"><div id="mk"><div>▲</div><span id="mlabel">0.1s</span></div></div>
+    <div class="ctrl">
+      <button id="play" aria-label="Groti" disabled>▶</button>
+      <div class="grow">
+        <label class="vol">Garsas <input type="range" id="vol" min="0" max="1" step="0.01" aria-label="Garsas"></label>
+      </div>
+      <button id="skip" disabled>Praleisti</button>
+      <button id="hint" disabled>💡 Užuomina (−1)</button>
+    </div>
+    <div class="pot" id="pot"></div>
+    <div class="guess">
+      <input type="text" id="q" placeholder="Ieškok dainos pavadinimo…" autocomplete="off" disabled>
+      <ul id="sugg" hidden></ul>
+    </div>
+    <div class="hintbox" id="hintbox" hidden></div>
+    <div class="tries" id="tries"></div>
+    <div class="err" id="err" hidden></div>
+  </section>
+  <div id="reveal" hidden></div>
+  <footer>Muzikos peržiūros: <a href="https://www.deezer.com" target="_blank" rel="noopener">Deezer</a><span id="sup" hidden> · <a id="supA" target="_blank" rel="noopener">☕ Paremti projektą</a></span></footer>
+</main>
+<script>
+// Įklijuok savo Ko-fi / Buy Me a Coffee / Patreon nuorodą, kad atsirastų „Paremti" mygtukas
+const SUPPORT_URL="";
+const SILENT="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=";
+const BLUR=[16,11,7,3,0],STAGES=[0.1,0.5,2,8,15],$=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const nt=s=>(s||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/\(.*?\)|\[.*?\]|feat.*$|- .*(remaster|version|edit).*$/g,"").replace(/[^a-z0-9]/g,"");
+const ld=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch(e){return d}};
+const sv=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
+let all=ld("all",null),on=new Set(ld("on",[])),vol=ld("vol",0.8),score=ld("score",0),streak=0,best=ld("best",{streak:0}),hints=0,rd={n:1,pts:0};
+let mode="clip",pre=null,spd=null,flt,daily=false,playing=false,cur=null,stage=0,done=false,audio=new Audio(),start=0,timer=null,tok=0,tries=[],st;
+
+/* ----- atlikėjai ----- */
+function chips(){
+  $("chips").innerHTML=all.map(n=>`<button class="chip" aria-pressed="${on.has(n)&&!daily}" data-n="${esc(n)}">${esc(n)}<span class="x" data-x="1" title="Pašalinti">✕</span></button>`).join("");
+  $("dailyBtn").setAttribute("aria-pressed",daily);
+}
+$("chips").onclick=e=>{const c=e.target.closest(".chip");if(!c)return;
+  if(e.target.dataset&&e.target.dataset.x){const n=c.dataset.n;all=all.filter(a=>a!==n);on.delete(n);if(!on.size&&all.length)on.add(all[0]);sv("all",all);sv("on",[...on]);chips();newRound();return;}
+  daily=false;const n=c.dataset.n;
+  if(on.has(n)){if(on.size>1)on.delete(n)}else on.add(n);sv("on",[...on]);daily=false;chips();newRound();};
+$("clearAll").onclick=()=>{if(!all.length||!confirm("Pašalinti visus atlikėjus?"))return;all=[];on=new Set();daily=false;sv("all",all);sv("on",[]);chips();newRound();};
+$("resetAll").onclick=async()=>{try{all=await(await fetch("/api/artists")).json()}catch(e){return}on=new Set(all);daily=false;sv("all",all);sv("on",[...on]);chips();newRound();};
+$("hint").onclick=()=>{if(!cur||done||hints>=3)return;hints++;const l=[];for(let i=1;i<=hints;i++)l.push(hintText(i));
+  $("hintbox").hidden=false;$("hintbox").innerHTML=l.map(x=>`<div>💡 ${esc(x)}</div>`).join("");draw();};
+$("dailyBtn").onclick=()=>{daily=!daily;if(daily)setMode("clip");chips();newRound();};
+async function addArtist(name){
+  const r=await fetch("/api/artist?name="+encodeURIComponent(name));
+  if(!r.ok){showErr("Atlikėjas „"+name+"“ nerastas.");return;}
+  const a=await r.json();showErr("");
+  if(!all.includes(a.name))all.push(a.name);on.add(a.name);daily=false;sv("all",all);sv("on",[...on]);chips();newRound();
+}
+/* atlikėjų automatinis užpildymas */
+let ast,ahi=0,alist=[];
+function amark(){[...$("asugg").children].forEach((li,i)=>{li.classList.toggle("sel",i===ahi);if(i===ahi)li.scrollIntoView({block:"nearest"})});}
+function pickA(i){const a=alist[i];if(!a)return;$("asugg").hidden=true;$("aq").value="";addArtist(a.name);}
+$("aq").oninput=e=>{
+  clearTimeout(ast);const v=e.target.value.trim();if(v.length<2){$("asugg").hidden=true;return;}
+  ast=setTimeout(async()=>{try{
+    const l=await(await fetch("/api/artistsearch?q="+encodeURIComponent(v))).json();
+    if($("aq").value.trim()!==v)return;alist=l;ahi=0;
+    $("asugg").innerHTML=l.map((a,i)=>`<li data-i="${i}">${a.picture?`<img src="${esc(a.picture)}" alt="">`:""}<span>${esc(a.name)}</span></li>`).join("");
+    $("asugg").hidden=!l.length;amark();}catch(err){}},250);
+};
+$("aq").onkeydown=e=>{
+  const n=$("asugg").children.length,open=!$("asugg").hidden&&n;
+  if(e.key==="ArrowDown"&&open){e.preventDefault();ahi=(ahi+1)%n;amark();}
+  else if(e.key==="ArrowUp"&&open){e.preventDefault();ahi=(ahi-1+n)%n;amark();}
+  else if(e.key==="Enter"){e.preventDefault();if(open)pickA(ahi);else if($("aq").value.trim()){const v=$("aq").value.trim();$("aq").value="";addArtist(v);}}
+  else if(e.key==="Escape")$("asugg").hidden=true;
+};
+$("asugg").onclick=e=>{const li=e.target.closest("li");if(li)pickA(+li.dataset.i)};
+$("asugg").onmousemove=e=>{const li=e.target.closest("li");if(li&&+li.dataset.i!==ahi){ahi=+li.dataset.i;amark();}};
+function showErr(t){$("err").textContent=t;$("err").hidden=!t;}
+
+/* ----- laiko juosta ----- */
+$("track").insertAdjacentHTML("beforeend",STAGES.slice(0,-1).map(t=>`<i style="left:${t/15*100}%"></i>`).join(""));
+function draw(){
+  const len=done?15:STAGES[stage],x=len/15*100,mk=$("mk");
+  $("unl").style.width=x+"%";mk.style.left=x+"%";
+  mk.style.transform=x>88?"translateX(-100%)":x<6?"translateX(0)":"translateX(-50%)";
+  $("mlabel").textContent=len+"s";
+  $("skip").textContent=stage>=STAGES.length-1?"Pasiduoti":mode==="cover"?"✨ Paryškinti":"Praleisti";
+  $("pips").innerHTML=BLUR.map((_,i)=>`<i class="${i<=stage?"on":""}"></i>`).join("")+`<span>Paryškinta ${stage}×</span>`;
+  if(mode==="cover"){const b=done?0:BLUR[stage],c=$("cov");c.style.filter=`blur(${b}px)`;c.style.transform=b?"scale(1.15)":"none";}
+  $("tries").innerHTML=tries.map(t=>`<div class="try">${esc(t.title)} – ${esc(t.artist)}</div>`).join("");
+  $("pot").textContent=mode==="speed"||done||!cur?"":`Už atsakymą dabar: ${pot()} tšk.`;
+  $("hint").hidden=mode==="speed";$("hint").disabled=!cur||done||hints>=3;$("hint").textContent=hints>=3?"💡 Užuominų nebėra":"💡 Užuomina (−1)";
+}
+function setFill(w,t){const f=$("fill");f.style.transition="none";f.style.transform="scaleX(0)";void f.offsetWidth;if(t){f.style.transition=`transform ${t}s linear`;f.style.transform=`scaleX(${w/100})`}}
+
+/* ----- raundas ----- */
+const rkey=()=>mode+"|"+[...on].join("|")+"|"+daily;
+async function fetchRound(warm){
+  const r=await fetch("/api/round?a="+encodeURIComponent([...on].join("|"))+(daily?"&daily=1":""));
+  if(!r.ok)throw 0;const t=await r.json();
+  let w=null;if(warm){w=new Audio();w.preload="auto";w.src=t.preview;} // pašildo kitą dainą iš anksto
+  return{t,w,start:Math.min(t.start||0,14)};
+}
+async function newRound(){
+  if(!on.size){emptyState();return;}
+  if(mode==="speed"&&!(spd&&spd.running)){speedIntro();return;}
+  if(daily){const d=ld("daily",null);if(d&&d.d===today()){showDailyDone(d);return;}}
+  if(mode==="rounds")$("rc").textContent=`Raundas ${rd.n}/10 · iš viso ${rd.pts} tšk.`;
+  const my=++tok;stopAudio();setFill(0,0);
+  hints=0;$("hintbox").hidden=true;
+  cur=null;done=false;stage=0;tries=[];showErr("");$("reveal").hidden=true;$("game").hidden=false;$("q").value="";$("sugg").hidden=true;
+  $("play").disabled=$("skip").disabled=$("q").disabled=true;$("play").textContent="…";draw();
+  try{
+    if(mode==="cover"){
+      const r=await fetch("/api/round?mode=cover&a="+encodeURIComponent([...on].join("|")));
+      if(!r.ok)throw 0;const t=await r.json();
+      await new Promise(ok=>{const i=new Image();i.onload=i.onerror=ok;i.src=t.coverBig||t.cover});
+      if(my!==tok)return;cur=t;$("cov").src=t.coverBig||t.cover;draw();
+      $("skip").disabled=$("q").disabled=false;
+    }else{
+      let R=null;if(pre&&pre.k===rkey())R=await pre.p;pre=null;
+      if(!R)R=await fetchRound();if(my!==tok)return;
+      cur=R.t;start=R.start;audio.oncanplay=null;audio.pause();audio.src=R.t.preview;audio.volume=vol;audio.load();
+      $("play").disabled=$("skip").disabled=$("q").disabled=false;$("play").textContent="▶";draw();
+      if(!daily)pre={k:rkey(),p:fetchRound(true).catch(()=>null)};
+      if(mode==="speed")playClip(STAGES[0]);
+    }
+  }catch(e){if(my===tok){showErr("Nepavyko įkelti. Patikrink ryšį arba pasirink kitą atlikėją.");$("skip").disabled=false;}}
+}
+/* ----- greičio režimas ----- */
+const lt=n=>n%10===1&&n%100!==11?"dainą":(n%10>=2&&n%10<=9&&(n%100<10||n%100>20))?"dainas":"dainų";
+function leaveSpeed(){if(spd&&spd.iv)clearInterval(spd.iv);spd=null;pre=null;$("clock").hidden=true;$("flash").hidden=true;}
+function speedIntro(){
+  stopAudio();++tok;cur=null;if(spd&&spd.iv)clearInterval(spd.iv);$("clock").hidden=true;
+  $("play").disabled=$("skip").disabled=$("q").disabled=true;
+  $("reveal").hidden=false;
+  $("reveal").innerHTML='<div class="reveal"><div><div class="res">⚡ 60 sekundžių</div><p>Atspėk kuo daugiau dainų. Neteisingas spėjimas ar „Praleisti" atskleidžia ilgesnį klipą, o neatspėjus einama prie kitos dainos.</p></div></div><button class="next" id="go">Pradėti</button>';
+  $("go").onclick=speedStart;$("go").focus();
+}
+function speedStart(){
+  audio.src=SILENT;{const pr=audio.play();audio.pause();if(pr&&pr.catch)pr.catch(()=>{});} // atrakina garsą telefone
+  spd={running:true,end:Date.now()+60000,count:0};$("clock").hidden=false;$("reveal").hidden=true;
+  spd.iv=setInterval(tick,200);tick();newRound();
+}
+function tick(){
+  if(!spd||!spd.running)return;const left=Math.max(0,spd.end-Date.now());
+  $("ct").textContent=`⏱ ${Math.ceil(left/1000)} s · atspėta: ${spd.count}`;$("cb").style.width=(left/600)+"%";
+  if(left<=0)speedEnd();
+}
+function speedEnd(){
+  clearInterval(spd.iv);spd.running=false;++tok;stopAudio();
+  $("q").disabled=$("skip").disabled=$("play").disabled=true;$("sugg").hidden=true;$("flash").hidden=true;
+  const n=spd.count;$("reveal").hidden=false;
+  $("reveal").innerHTML=`<div class="reveal"><div><div class="res ok">Laikas baigėsi!</div><h2>Atspėjai ${n} ${lt(n)}</h2></div></div><button class="next" id="again">Žaisti dar kartą</button><button class="next share" id="share">Kopijuoti rezultatą</button>`;
+  $("again").onclick=speedStart;
+  $("share").onclick=async()=>{const txt=`Atspėk dainą ⚡ 60 s: ${n} ${lt(n)}\n${location.origin}`;
+    try{await navigator.clipboard.writeText(txt);$("share").textContent="Nukopijuota!"}catch(e){prompt("Nukopijuok:",txt)}};
+}
+function setMode(m){
+  mode=m;leaveSpeed();$("game").hidden=false;if(m==="rounds")rd={n:1,pts:0};$("rc").hidden=m!=="rounds";$("game").dataset.mode=m;
+  document.querySelectorAll("#modes button").forEach(b=>b.classList.toggle("on",b.dataset.m===m));
+  $("q").placeholder=m==="cover"?"Ieškok albumo pavadinimo…":"Ieškok dainos pavadinimo…";
+}
+$("modes").onclick=e=>{const b=e.target.closest("button");if(!b)return;daily=false;setMode(b.dataset.m);chips();newRound();};
+function setPlaying(p){playing=p;$("play").textContent=p?"⏸":"▶";const pp=$("pp");if(pp)pp.textContent=p?"⏸ Sustabdyti peržiūrą":"▶ Groti peržiūrą";$("play").setAttribute("aria-label",p?"Sustabdyti":"Groti");
+  if(!p){const f=$("fill"),m=getComputedStyle(f).transform;f.style.transition="none";f.style.transform=m&&m!=="none"?m:"scaleX(0)";}}
+function stopAudio(){clearTimeout(timer);audio.pause();setPlaying(false);}
+function playClip(len){
+  clearTimeout(timer);audio.oncanplay=null;
+  const go=()=>{audio.oncanplay=null;audio.currentTime=start;audio.play().catch(()=>{});setPlaying(true);setFill(len/15*100,len);timer=setTimeout(stopAudio,len*1000);};
+  if(audio.readyState>=3)go();else audio.oncanplay=go;
+}
+function advance(){if(stage>=STAGES.length-1)return finish(false);stage++;draw();if(mode!=="cover")playClip(STAGES[stage]);}
+function boom(small){
+  if(matchMedia("(prefers-reduced-motion:reduce)").matches)return;
+  const c=$("fx"),x=c.getContext("2d");c.width=innerWidth;c.height=innerHeight;
+  const cols=["#f2b441","#7bd6a0","#f3efe3","#5fb4e8","#ef7664"],N=small?45:170,DUR=small?1400:5000,t0=performance.now();
+  const mkp=(ox,oy,dir)=>({x:ox,y:oy,vx:dir*(4+Math.random()*9)+(Math.random()-.5)*4,vy:-(8+Math.random()*12),s:5+Math.random()*6,c:cols[Math.random()*5|0],r:Math.random()*6,vr:(Math.random()-.5)*.35,w:Math.random()*6});
+  const ps=Array.from({length:N},(_,i)=>small?mkp(innerWidth/2,innerHeight*.45,(Math.random()-.5)*2):i%3===0?mkp(0,innerHeight,1):i%3===1?mkp(innerWidth,innerHeight,-1):mkp(innerWidth/2,innerHeight*.5,(Math.random()-.5)*2));
+  (function step(t){const e=t-t0;x.clearRect(0,0,c.width,c.height);
+    ps.forEach(q=>{q.vy+=.22;q.vx*=.992;q.vy*=.992;q.x+=q.vx+Math.sin(e/300+q.w)*.8;q.y+=q.vy;q.r+=q.vr;
+      x.globalAlpha=Math.max(0,Math.min(1,(DUR-e)/900));x.save();x.translate(q.x,q.y);x.rotate(q.r);x.fillStyle=q.c;x.fillRect(-q.s/2,-q.s/2,q.s,q.s*.6);x.restore()});
+    if(e<DUR)requestAnimationFrame(step);else x.clearRect(0,0,c.width,c.height)})(t0);
+}
+const today=()=>new Date().toLocaleDateString("sv",{timeZone:"Europe/Vilnius"});
+const pot=()=>Math.max(1,STAGES.length-stage-hints);
+const mk=(w,k)=>Array.from(w).map((c,i)=>i<k?c:"_").join(" ");
+function hintText(l){
+  const cv=mode==="cover",ws=((cv?cur.album:cur.title)||"").split(" ");
+  const lens=ws.map(w=>mk(w,0)).join("   "),firsts=ws.map(w=>mk(w,1)).join("   ");
+  return(cv?[`Atlikėjas: ${cur.artist}`,`Pavadinimas: ${lens}`,`Pradžia: ${firsts}`]:[`Pavadinimas: ${lens}`,`Pradžia: ${firsts}`,`Albumas: ${cur.album||"nežinomas"}`])[l-1];
+}
+function emptyState(){
+  ++tok;stopAudio();cur=null;$("reveal").hidden=true;$("game").hidden=false;
+  $("play").disabled=$("skip").disabled=$("q").disabled=$("hint").disabled=true;$("pot").textContent="";
+  showErr("Atlikėjų nėra. Pridėk atlikėją arba spausk „↺ Numatytieji“.");
+}
+function revealHTML(c,won,pts,cv,locked,nextLabel){
+  const title=cv?c.album:c.title,img=c.coverBig||c.cover,
+    link=cv?`https://www.deezer.com/album/${c.albumId}`:`https://www.deezer.com/track/${c.id}`;
+  return `<div class="rev"><div class="stamp ${won?"ok":"bad"}">${won?"ATSPĖTA!":"NEATSPĖTA"}</div>${img?`<img class="big" src="${esc(img)}" alt="">`:""}<small class="was">TAI BUVO_</small><h2>${esc(title)}</h2><p>${esc(c.artist)}${!cv&&c.album?" · "+esc(c.album):""}</p>${won?`<div class="pts">+${pts} ${pts===1?"taškas":"taškai"}</div>`:""}${locked?'<p class="lock">🔒 Dienos daina jau žaista. Nauja bus rytoj!</p>':(cv?"":'<button class="pp" id="pp">⏸ Sustabdyti peržiūrą</button>')}<a class="dl" href="${link}" target="_blank" rel="noopener">Klausyti per Deezer ↗</a><div class="two"><button class="next share" id="share">Pasidalinti</button><button class="next" id="next">${nextLabel}</button></div></div>`;
+}
+function wireShare(won,st,cv){
+  $("share").onclick=async()=>{const sq=STAGES.map((_,i)=>won?(i<st?"🟥":i===st?"🟩":"⬛"):"🟥").join("");
+    const txt=`Atspėk dainą${daily?" (dienos)":""}${cv?" 🖼️":""} ${won?(st+1)+"/5":"X/5"} ${sq}\n${location.origin}`;
+    try{await navigator.clipboard.writeText(txt);$("share").textContent="Nukopijuota!"}catch(e){prompt("Nukopijuok:",txt)}};
+}
+function showDailyDone(d){
+  ++tok;stopAudio();cur=null;done=true;$("game").hidden=true;$("reveal").hidden=false;
+  $("reveal").innerHTML=revealHTML(d.song,d.won,d.pts,false,true,"Žaisti įprastą režimą ⏭");
+  wireShare(d.won,d.stage,false);$("next").onclick=()=>{daily=false;chips();newRound();};
+}
+function showSummary(){
+  const n=rd.pts,max=STAGES.length*10,msg=n>=40?"Legenda! 🔥":n>=25?"Puikiai! 🎉":n>=12?"Neblogai 👍":"Dar pasitreniruok 🎧";
+  $("game").hidden=true;$("reveal").hidden=false;
+  $("reveal").innerHTML=`<div class="rev"><div class="stamp ok">PABAIGA</div><small class="was">TAVO REZULTATAS_</small><h2>${n} / ${max} taškų</h2><p>${msg}</p><div class="two"><button class="next share" id="share">Pasidalinti</button><button class="next" id="again2">Žaisti dar kartą ⏭</button></div></div>`;
+  if(n>=25)boom();
+  $("share").onclick=async()=>{const txt=`Atspėk dainą 🏆 10 raundų: ${n}/${max}\n${location.origin}`;
+    try{await navigator.clipboard.writeText(txt);$("share").textContent="Nukopijuota!"}catch(e){prompt("Nukopijuok:",txt)}};
+  $("again2").onclick=()=>{rd={n:1,pts:0};newRound();};
+}
+function finish(won){
+  if(mode==="speed"&&spd&&spd.running){
+    stopAudio();if(won){spd.count++;boom(true);}tick();if(!spd.running)return;
+    const f=$("flash");f.hidden=false;f.innerHTML=`${won?"✔":"✖"} ${esc(cur.title)} <small>– ${esc(cur.artist)}</small>`;
+    clearTimeout(flt);flt=setTimeout(()=>{f.hidden=true},2000);newRound();return;
+  }
+  done=true;stopAudio();
+  const cv=mode==="cover",pts=won?pot():0;
+  if(won){score+=pts;streak++;if(streak>best.streak){best.streak=streak;sv("best",best)}}else streak=0;
+  if(mode==="rounds")rd.pts+=pts;
+  sv("score",score);$("score").textContent=score;$("streak").textContent=streak;$("best").textContent=best.streak;
+  if(won){const sc=$("score");sc.classList.remove("pop");void sc.offsetWidth;sc.classList.add("pop");boom();}
+  if(daily)sv("daily",{d:today(),won,pts,stage,song:{id:cur.id,title:cur.title,artist:cur.artist,album:cur.album,albumId:cur.albumId,cover:cur.cover,coverBig:cur.coverBig}});
+  $("q").disabled=$("skip").disabled=true;$("sugg").hidden=true;draw();
+  const last=mode==="rounds"&&rd.n>=10;
+  $("game").hidden=true;$("reveal").hidden=false;
+  $("reveal").innerHTML=revealHTML(cur,won,pts,cv,false,last?"Rezultatas 🏆":mode==="rounds"?"Kitas raundas ⏭":cv?"Kitas viršelis ⏭":"Kita daina ⏭");
+  wireShare(won,stage,cv);
+  $("next").onclick=()=>{if(mode==="rounds"){if(rd.n>=10){showSummary();return;}rd.n++;}newRound();};
+  $("next").focus();
+  if(!cv){$("pp").onclick=()=>playing?stopAudio():playClip(15);playClip(15);}
+}
+$("play").onclick=()=>{if(!cur)return;if(playing)return stopAudio();playClip(done?15:STAGES[stage]);};
+$("skip").onclick=()=>cur&&!done?advance():newRound();
+$("vol").value=vol;$("vol").oninput=e=>{vol=+e.target.value;audio.volume=vol;sv("vol",vol)};
+
+/* ----- spėjimas ----- */
+$("q").oninput=e=>{
+  clearTimeout(st);const v=e.target.value.trim();if(v.length<2){$("sugg").hidden=true;return;}
+  st=setTimeout(async()=>{
+    try{const l=await (await fetch("/api/search?q="+encodeURIComponent(v)+"&a="+encodeURIComponent([...on].join("|"))+(mode==="cover"?"&album=1":"")+(daily?"&daily=1":""))).json();
+    $("sugg").innerHTML=l.map((t,i)=>`<li tabindex="0" data-i="${i}">${t.cover?`<img src="${esc(t.cover)}" alt="">`:""}<span>${esc(t.title)}<small>${esc(t.artist)}</small></span></li>`).join("");
+    if($("q").value.trim()!==v)return;$("sugg").hidden=!l.length;$("sugg").list=l;hi=0;mark();}catch(err){}
+  },250);
+};
+function pick(li){
+  const t=$("sugg").list[+li.dataset.i];$("sugg").hidden=true;$("q").value="";
+  const ok=mode==="cover"?(t.id===cur.albumId||(nt(t.title)===nt(cur.album)&&nt(t.artist)===nt(cur.artist))):(t.id===cur.id||(nt(t.title)===nt(cur.title)&&nt(t.artist)===nt(cur.artist)));
+  if(ok)finish(true);
+  else{tries.push(t);advance();}
+}
+$("sugg").onclick=e=>{const li=e.target.closest("li");if(li)pick(li)};
+$("sugg").onkeydown=e=>{if(e.key==="Enter")pick(e.target.closest("li"))};
+let hi=0;
+function mark(){[...$("sugg").children].forEach((li,i)=>{li.classList.toggle("sel",i===hi);if(i===hi)li.scrollIntoView({block:"nearest"})});}
+$("sugg").onmousemove=e=>{const li=e.target.closest("li");if(li&&+li.dataset.i!==hi){hi=+li.dataset.i;mark();}};
+$("q").onkeydown=e=>{
+  const items=$("sugg").children,n=items.length;
+  if(e.key==="ArrowDown"&&!$("sugg").hidden&&n){e.preventDefault();hi=(hi+1)%n;mark();}
+  else if(e.key==="ArrowUp"&&!$("sugg").hidden&&n){e.preventDefault();hi=(hi-1+n)%n;mark();}
+  else if(e.key==="Enter"&&!$("sugg").hidden&&n){e.preventDefault();pick(items[hi]||items[0]);}
+  else if(e.key==="Escape")$("sugg").hidden=true;
+};
+
+/* ----- pradžia ----- */
+if(/iPad|iPhone|iPod/.test(navigator.userAgent))document.querySelector(".vol").hidden=true;
+if(SUPPORT_URL){$("supA").href=SUPPORT_URL;$("sup").hidden=false;}
+(async()=>{
+  if(!all){try{all=await (await fetch("/api/artists")).json()}catch(e){all=[]}sv("all",all);}
+  if(!on.size||![...on].every(n=>all.includes(n))){on=new Set(all);sv("on",[...on]);}
+  $("score").textContent=score;$("best").textContent=best.streak;
+  chips();newRound();
+})();
+</script>
+</body>
+</html>
