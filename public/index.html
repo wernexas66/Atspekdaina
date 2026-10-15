@@ -387,7 +387,7 @@ function emptyState(){
 function revealHTML(c,won,pts,cv,locked,nextLabel){
   const title=cv?c.album:c.title,img=c.coverBig||c.cover,
     link=cv?`https://www.deezer.com/album/${c.albumId}`:`https://www.deezer.com/track/${c.id}`;
-  return `<div class="rev"><div class="stamp ${won?"ok":"bad"}">${won?"ATSPĖTA!":"NEATSPĖTA"}</div>${img?`<img class="big" src="${esc(img)}" alt="">`:""}<small class="was">TAI BUVO_</small><h2>${esc(title)}</h2><p>${esc(c.artist)}${!cv&&c.album?" · "+esc(c.album):""}</p>${won?`<div class="pts">+${pts} ${pts===1?"taškas":"taškai"}</div>`:""}${locked?'<p class="lock">🔒 Dienos daina jau žaista. Nauja bus rytoj!</p>':(cv?"":'<button class="pp" id="pp">⏸ Sustabdyti peržiūrą</button>')}<a class="dl" href="${link}" target="_blank" rel="noopener">Klausyti per Deezer ↗</a><div class="two"><button class="next share" id="share">Pasidalinti</button><button class="next" id="next">${nextLabel}</button></div></div>`;
+  return `<div class="rev"><div class="stamp ${won?"ok":"bad"}">${won?"ATSPĖTA!":"NEATSPĖTA"}</div>${img?`<img class="big" src="${esc(img)}" alt="">`:""}${esc(title)}</h2><p>${esc(c.artist)}${!cv&&c.album?" · "+esc(c.album):""}</p>${won?`<div class="pts">+${pts} ${pts===1?"taškas":"taškai"}</div>`:""}${locked?'<p class="lock">🔒 Dienos daina jau žaista. Nauja bus rytoj!</p>':(cv?"":'<button class="pp" id="pp">⏸ Sustabdyti peržiūrą</button>')}<a class="dl" href="${link}" target="_blank" rel="noopener">Klausyti per Deezer ↗</a><div class="two"><button class="next share" id="share">Pasidalinti</button><button class="next" id="next">${nextLabel}</button></div></div>`;
 }
 function wireShare(won,st,cv){
   $("share").onclick=async()=>{const sq=STAGES.map((_,i)=>won?(i<st?"🟥":i===st?"🟩":"⬛"):"🟥").join("");
