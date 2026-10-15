@@ -382,7 +382,7 @@ function hintText(l){
 function emptyState(){
   ++tok;stopAudio();cur=null;$("reveal").hidden=true;$("game").hidden=false;
   $("play").disabled=$("skip").disabled=$("q").disabled=$("hint").disabled=true;$("pot").textContent="";
-  showErr("Atlikėjų nėra. Pridėk atlikėją arba spausk „↺ Numatytieji“.");
+  showErr("Atlikėjų nėra. Pridėk atlikėją arba spausk „Pradiniai atlikėjai“.");
 }
 function revealHTML(c,won,pts,cv,locked,nextLabel){
   const title=cv?c.album:c.title,img=c.coverBig||c.cover,
