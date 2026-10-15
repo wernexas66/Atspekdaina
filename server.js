@@ -13,7 +13,7 @@ function dz(p){
 }
 process.on("unhandledRejection",e=>console.log("Klaida:",e&&e.message));
 const cache=new Map();
-let HTML=null;
+const HTMLS=new Map();
 async function cached(k,fn,ttl){const c=cache.get(k);if(c&&Date.now()-c.t<ttl)return c.v;const v=await fn();if(v!=null&&!(Array.isArray(v)&&!v.length))cache.set(k,{t:Date.now(),v});return v}
 const findArtist=n=>cached("a:"+norm(n),async()=>{
   const l=((await dz("/search/artist?limit=5&q="+encodeURIComponent(n))).data)||[];
@@ -73,9 +73,14 @@ const server=http.createServer(async(req,res)=>{
     if(u.pathname==="/api/stats"){const o={};for(const n of ARTISTS)o[n]=(await tracksOf(n)).length;return send(res,200,o)}
     if(u.pathname==="/api/round")return send(res,200,await round(names,q.get("daily")==="1",q.get("mode")==="cover"));
     if(u.pathname==="/api/search")return send(res,200,await search(q.get("q")||"",q.get("daily")==="1"?ARTISTS:names,q.get("album")==="1"));
-    if(!HTML){try{const raw=fs.readFileSync(path.join(__dirname,"public","index.html"));HTML={raw,gz:require("zlib").gzipSync(raw)}}catch(e){return send(res,404,{error:"Nerasta"})}}
+    if(u.pathname==="/og.png"){try{const d=fs.readFileSync(path.join(__dirname,"public","og.png"));res.writeHead(200,{"Content-Type":"image/png","Cache-Control":"public, max-age=86400"});return res.end(d)}catch(e){return send(res,404,{error:"Nerasta"})}}
+    // puslapio adresas įrašomas į nuorodų peržiūros (og:) žymas pagal tai, kuriuo adresu atidaryta svetainė
+    let host=req.headers["x-forwarded-host"]||req.headers.host||"";if(!/^[a-z0-9.-]+(:\d+)?$/i.test(host))host="atspekdaina.eu";
+    const origin=(/^(localhost|127\.)/.test(host)?"http://":"https://")+host;
+    let H=HTMLS.get(origin);
+    if(!H){try{const raw=Buffer.from(fs.readFileSync(path.join(__dirname,"public","index.html"),"utf8").split("__ORIGIN__").join(origin));H={raw,gz:require("zlib").gzipSync(raw)};if(HTMLS.size>20)HTMLS.clear();HTMLS.set(origin,H)}catch(e){return send(res,404,{error:"Nerasta"})}}
     const gz=/gzip/.test(req.headers["accept-encoding"]||"");
-    res.writeHead(200,{"Content-Type":"text/html; charset=utf-8","Cache-Control":"no-cache",...(gz?{"Content-Encoding":"gzip"}:{})});res.end(gz?HTML.gz:HTML.raw);
+    res.writeHead(200,{"Content-Type":"text/html; charset=utf-8","Cache-Control":"no-cache",...(gz?{"Content-Encoding":"gzip"}:{})});res.end(gz?H.gz:H.raw);
   }catch(e){send(res,500,{error:e.message})}
 });
 if(process.argv.includes("--build")){(async()=>{const o={};for(const n of ARTISTS){o[n]=await liveTracks(n);console.log(n+":",o[n].length)}
