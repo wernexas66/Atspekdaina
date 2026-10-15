@@ -4,12 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Atspėk dainą – nemokamas dainų spėjimo žaidimas</title>
-<meta name="description" content="Atspėk lietuvišką dainą iš 0,1 sekundės. Klipai, albumų viršeliai, 60 s iššūkis ir dienos daina. Nemokamai ir be registracijos.">
+<meta name="description" content="Atspėk lietuvišką dainą iš 0,1 sekundės. Klipai, albumų viršeliai, 60 s iššūkis ir dienos daina.">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Atspėk dainą">
 <meta property="og:locale" content="lt_LT">
 <meta property="og:title" content="Atspėk dainą – nemokamas dainų spėjimo žaidimas">
-<meta property="og:description" content="Atspėk lietuvišką dainą iš 0,1 sekundės. Klipai, albumų viršeliai, 60 s iššūkis ir dienos daina. Nemokamai ir be registracijos.">
+<meta property="og:description" content="Atspėk lietuvišką dainą iš 0,1 sekundės. Klipai, albumų viršeliai, 60 s iššūkis ir dienos daina.">
 <meta property="og:url" content="__ORIGIN__/">
 <meta property="og:image" content="__ORIGIN__/og.png">
 <meta property="og:image:width" content="1200">
@@ -17,7 +17,7 @@
 <meta property="og:image:alt" content="Atspėk dainą – lietuviškos dainos iš 0,1 sekundės">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Atspėk dainą – nemokamas dainų spėjimo žaidimas">
-<meta name="twitter:description" content="Atspėk lietuvišką dainą iš 0,1 sekundės. Klipai, albumų viršeliai, 60 s iššūkis ir dienos daina. Nemokamai ir be registracijos.">
+<meta name="twitter:description" content="Atspėk lietuvišką dainą iš 0,1 sekundės. Klipai, albumų viršeliai, 60 s iššūkis ir dienos daina.">
 <meta name="twitter:image" content="__ORIGIN__/og.png">
 <meta name="theme-color" content="#0b1b28">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎵</text></svg>">
@@ -323,7 +323,7 @@ function speedIntro(){
   stopAudio();++tok;cur=null;if(spd&&spd.iv)clearInterval(spd.iv);$("clock").hidden=true;
   $("play").disabled=$("skip").disabled=$("q").disabled=true;
   $("reveal").hidden=false;
-  $("reveal").innerHTML='<div class="reveal"><div><div class="res">⚡ 60 sekundžių</div><p>Atspėk kuo daugiau dainų. Neteisingas spėjimas ar „Praleisti" atskleidžia ilgesnį klipą, o neatspėjus einama prie kitos dainos.</p></div></div><button class="next" id="go">Pradėti</button>';
+  $("reveal").innerHTML='<div class="reveal"><div><div class="res">60 sekundžių</div><p>Atspėk kuo daugiau dainų. Neteisingas spėjimas ar „Praleisti" atskleidžia ilgesnį klipą, o neatspėjus einama prie kitos dainos.</p></div></div><button class="next" id="go">Pradėti</button>';
   $("go").onclick=speedStart;$("go").focus();
 }
 function speedStart(){
@@ -342,7 +342,7 @@ function speedEnd(){
   const n=spd.count;$("reveal").hidden=false;
   $("reveal").innerHTML=`<div class="reveal"><div><div class="res ok">Laikas baigėsi!</div><h2>Atspėjai ${n} ${lt(n)}</h2></div></div><button class="next" id="again">Žaisti dar kartą</button><button class="next share" id="share">Kopijuoti rezultatą</button>`;
   $("again").onclick=speedStart;
-  $("share").onclick=async()=>{const txt=`Atspėk dainą ⚡ 60 s: ${n} ${lt(n)}\n${location.origin}`;
+  $("share").onclick=async()=>{const txt=`Atspėk dainą 60 s: ${n} ${lt(n)}\n${location.origin}`;
     try{await navigator.clipboard.writeText(txt);$("share").textContent="Nukopijuota!"}catch(e){prompt("Nukopijuok:",txt)}};
 }
 function setMode(m){
