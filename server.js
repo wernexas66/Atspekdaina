@@ -2,7 +2,7 @@
 const http=require("http"),fs=require("fs"),path=require("path");
 const PORT=process.env.PORT||3000, DZ="https://api.deezer.com";
 // Numatyti atlikėjai. Daugiau galima pridėti pačiame puslapyje.
-const ARTISTS=["OG Version","Jazzu","Monika Liu","Justinas Jarutis","Jessica Shy","Donny Montell","Vaidas Baumila","Lemon Joy","Foje"];
+const ARTISTS=["OG Version","Proflame","Jazzu","Andrius Mamontovas","Jurga","Monika Liu","The Roop","Silvester Belt","Justinas Jarutis","Jessica Shy","Donny Montell","Vaidas Baumila","G&G Sindikatas","Skamp","Lemon Joy","Foje","Rokas Yan","Leon Somov"];
 const norm=x=>(x||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9 ]/g," ").replace(/\s+/g," ").trim();
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 // Deezer leidžia ~50 užklausų per 5 s, todėl jas siunčiame po vieną
@@ -41,14 +41,14 @@ const pmemo=new Map();
 const pool=async names=>{const k=names.join("|"),c=pmemo.get(k);if(c&&Date.now()-c.t<60000)return c.v;
   const v=(await Promise.all(names.map(tracksOf))).flat().sort((a,b)=>a.id-b.id);if(pmemo.size>40)pmemo.clear();pmemo.set(k,{t:Date.now(),v});return v};
 function seeded(str){let s=0;for(const c of str)s=(s*31+c.charCodeAt(0))>>>0;return()=>(s=(s*1664525+1013904223)>>>0)/4294967296}
-async function round(names,daily,cover){
+async function round(names,daily,cover,id,album){
   let p=await pool(daily?ARTISTS:names);
   if(cover){p=p.filter(t=>t.albumId&&t.album&&t.cover);if(!p.length)throw new Error("Nepavyko rasti albumų");
-    const t=p[Math.floor(Math.random()*p.length)];return{id:t.id,title:t.title,artist:t.artist,album:t.album,albumId:t.albumId,cover:t.cover,coverBig:t.coverBig||t.cover};}
+    const t=(album&&p.find(x=>String(x.albumId)===album))||p[Math.floor(Math.random()*p.length)];return{id:t.id,title:t.title,artist:t.artist,album:t.album,albumId:t.albumId,cover:t.cover,coverBig:t.coverBig||t.cover};}
   if(!p.length)throw new Error("Nepavyko rasti dainų");
   const day=new Date().toLocaleDateString("sv",{timeZone:"Europe/Vilnius"});
   const rnd=daily?seeded(day):Math.random;
-  let i=Math.floor(rnd()*p.length);
+  let i=id?Math.max(0,p.findIndex(x=>String(x.id)===id)):Math.floor(rnd()*p.length);
   for(let k=0;k<10;k++,i=(i+1)%p.length){
     const f=await dz("/track/"+p[i].id); // šviežia peržiūros nuoroda (jos greitai nebegalioja)
     if(f.preview)return{id:f.id,title:f.title_short||f.title,artist:p[i].artist,cover:f.album&&(f.album.cover_medium||f.album.cover),coverBig:f.album&&(f.album.cover_big||f.album.cover_xl),album:f.album&&f.album.title,albumId:f.album&&f.album.id,preview:f.preview,start:rnd()*14};
@@ -71,7 +71,8 @@ const server=http.createServer(async(req,res)=>{
     if(u.pathname==="/api/artist"){const a=await findArtist(q.get("name")||"");return a?send(res,200,a):send(res,404,{error:"Atlikėjas nerastas"})}
     if(u.pathname==="/api/artistsearch"){const l=((await dz("/search/artist?limit=6&q="+encodeURIComponent(q.get("q")||""))).data)||[];return send(res,200,l.map(a=>({id:a.id,name:a.name,picture:a.picture_small})))}
     if(u.pathname==="/api/stats"){const o={};for(const n of ARTISTS)o[n]=(await tracksOf(n)).length;return send(res,200,o)}
-    if(u.pathname==="/api/round")return send(res,200,await round(names,q.get("daily")==="1",q.get("mode")==="cover"));
+    if(u.pathname==="/api/pool"){const p=await pool(names);return send(res,200,{t:p.map(x=>x.id),a:[...new Set(p.filter(x=>x.albumId).map(x=>x.albumId))]})}
+    if(u.pathname==="/api/round")return send(res,200,await round(names,q.get("daily")==="1",q.get("mode")==="cover",q.get("id"),q.get("album")));
     if(u.pathname==="/api/search")return send(res,200,await search(q.get("q")||"",q.get("daily")==="1"?ARTISTS:names,q.get("album")==="1"));
     if(u.pathname==="/og.png"){try{const d=fs.readFileSync(path.join(__dirname,"public","og.png"));res.writeHead(200,{"Content-Type":"image/png","Cache-Control":"public, max-age=86400"});return res.end(d)}catch(e){return send(res,404,{error:"Nerasta"})}}
     // puslapio adresas įrašomas į nuorodų peržiūros (og:) žymas pagal tai, kuriuo adresu atidaryta svetainė

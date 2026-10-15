@@ -4,23 +4,23 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Atspėk dainą – nemokamas dainų spėjimo žaidimas</title>
-<meta name="description" content="Atspėk lietuvišką dainą iš 0,1 sekundės. Klipai, albumų viršeliai, 60 s iššūkis ir dienos daina.">
+<meta name="description" content="Atspėk lietuvišką dainą iš 0,2 sekundės. Klipai, albumų viršeliai, 60 s iššūkis ir dienos daina. Nemokamai ir be registracijos.">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Atspėk dainą">
 <meta property="og:locale" content="lt_LT">
 <meta property="og:title" content="Atspėk dainą – nemokamas dainų spėjimo žaidimas">
-<meta property="og:description" content="Atspėk lietuvišką dainą iš 0,1 sekundės. Klipai, albumų viršeliai, 60 s iššūkis ir dienos daina.">
+<meta property="og:description" content="Atspėk lietuvišką dainą iš 0,2 sekundės. Klipai, albumų viršeliai, 60 s iššūkis ir dienos daina. Nemokamai ir be registracijos.">
 <meta property="og:url" content="__ORIGIN__/">
 <meta property="og:image" content="__ORIGIN__/og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="Atspėk dainą – lietuviškos dainos iš 0,1 sekundės">
+<meta property="og:image:alt" content="Atspėk dainą – lietuviškos dainos iš 0,2 sekundės">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Atspėk dainą – nemokamas dainų spėjimo žaidimas">
-<meta name="twitter:description" content="Atspėk lietuvišką dainą iš 0,1 sekundės. Klipai, albumų viršeliai, 60 s iššūkis ir dienos daina.">
+<meta name="twitter:description" content="Atspėk lietuvišką dainą iš 0,2 sekundės. Klipai, albumų viršeliai, 60 s iššūkis ir dienos daina. Nemokamai ir be registracijos.">
 <meta name="twitter:image" content="__ORIGIN__/og.png">
 <meta name="theme-color" content="#0b1b28">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎵</text></svg>">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230b1b28'/%3E%3Ccircle cx='32' cy='32' r='22' fill='%23f2b441'/%3E%3Cpath d='M27 22l16 10-16 10z' fill='%231b1405'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&display=swap" rel="stylesheet">
 <style>
@@ -153,19 +153,37 @@ button,input{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 .introcard .introsub{font-size:.88rem}
 @media (max-width:520px){.corners{top:10px;right:10px}.corners .chip{font-size:.78rem;padding:5px 10px}}
 @media (prefers-reduced-motion:reduce){.introcard{animation:none}}
+input[type=range]{-webkit-appearance:none;appearance:none;height:6px;border-radius:3px;background:var(--line);outline:none}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:var(--amber);border:0;cursor:pointer}
+input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:var(--amber);border:0}
+.links{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-bottom:16px}
+.links a{padding:7px 12px;border:1px solid var(--line);border-radius:99px;color:var(--ink);text-decoration:none;font-size:.85rem}.links a:hover{border-color:var(--amber)}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0;text-align:left}
+.stats div{background:var(--bg2);padding:8px 10px;border-radius:10px;font-size:.8rem;color:var(--mute)}.stats b{display:block;color:var(--ink);font-size:1.05rem}
+.badges{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-bottom:14px}.badge{width:84px;font-size:1.6rem}
+.badge small{display:block;font-size:.68rem;color:var(--mute)}.badge.off{opacity:.3;filter:grayscale(1)}
+.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--amber);color:#1b1405;padding:10px 16px;border-radius:99px;font-weight:700;z-index:70;max-width:90vw;text-align:center}
+[data-theme=light]{--bg:#eaf1f5;--bg2:#fff;--panel:#fff;--line:#c3d3de;--ink:#10212e;--mute:#587184;--amber:#e0950f;--ok:#1c9a60;--bad:#d4452f}
+html[data-theme=light]{background:#eaf1f5}
+[data-theme=light] .bg{background:radial-gradient(700px 520px at 88% -6%,#cfe6f2 0,transparent 60%),radial-gradient(820px 620px at -12% 108%,#f7e3bd 0,transparent 55%),#eaf1f5}
+[data-theme=light] .track{background:#dfe9f0}[data-theme=light] .track .unl{background:#b9d3e3}[data-theme=light] .pips i{background:#c3d3de}
+[data-theme=light] #sugg li:hover,[data-theme=light] #sugg li.sel,[data-theme=light] #asugg li.sel{background:#e3eef5}
+[data-theme=light] .stamp{background:#fffc}[data-theme=light] .modes button.on{color:#fff}
 </style>
 </head>
 <body>
 <div class="bg" aria-hidden="true"></div>
-<div class="corners"><button class="chip" id="helpBtn" aria-label="Kaip žaisti">?</button><button class="chip daily" id="dailyBtn" aria-pressed="false">📅 Dienos daina</button></div>
+<div class="corners"><button class="chip" id="profBtn" aria-label="Profilis">👤</button><button class="chip" id="themeBtn" aria-label="Tema">🌓</button><button class="chip" id="helpBtn" aria-label="Kaip žaisti">?</button><button class="chip daily" id="dailyBtn" aria-pressed="false">📅 Dienos daina</button></div>
 <canvas id="fx"></canvas>
+<div class="toast" id="toast" hidden></div>
+<div class="intro" id="profile" role="dialog" aria-modal="true" hidden><div class="introcard"><h2>👤 Profilis</h2><input type="text" id="nick" maxlength="16" placeholder="Slapyvardis" autocomplete="off"><div class="stats" id="stats"></div><div class="badges" id="badges"></div><button class="next" id="profClose">Uždaryti</button></div></div>
 <div class="intro" id="intro" role="dialog" aria-modal="true" aria-labelledby="introT" hidden>
   <div class="introcard">
     <div class="introplay">▶</div>
     <h2 id="introT">Sveikas atvykęs!</h2>
     <p>Atspėk lietuvišką dainą iš trumpo klipo.</p>
     <ol>
-      <li>Paspausk ▶ ir išgirsi vos <b>0,1 sekundės</b> klipą.</li>
+      <li>Paspausk ▶ ir išgirsi vos <b>0,2 sekundės</b> klipą.</li>
       <li>Įvesk dainos pavadinimą. Klaida ar „Praleisti" atskleidžia ilgesnį klipą (0,5 → 2 → 8 → 15 s).</li>
       <li>Kuo anksčiau atspėsi, tuo daugiau taškų: <b>5, 4, 3, 2, 1</b>.</li>
     </ol>
@@ -178,10 +196,10 @@ button,input{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
     <h1>Atspėk<br>dainą</h1>
     <div class="score"><b id="score">0</b>taškai · serija <span id="streak">0</span> · rekordas <span id="best">0</span></div>
   </header>
-  <div class="modes" id="modes"><button data-m="clip" class="on"> Dainos</button><button data-m="cover"> Viršeliai</button><button data-m="speed"> 60 s</button><button data-m="rounds"> 10 raundų</button></div>
+  <div class="modes" id="modes"><button data-m="clip" class="on">🎧 Klipai</button><button data-m="cover">🖼️ Viršeliai</button><button data-m="speed">⚡ 60 s</button><button data-m="rounds">🏆 10 raundų</button></div>
   <div class="chips" id="chips" aria-label="Atlikėjai"></div>
   <div class="addform"><input type="text" id="aq" placeholder="+ Pridėti atlikėją" aria-label="Pridėti atlikėją" autocomplete="off"><ul id="asugg" hidden></ul></div>
-  <div class="artbtns"><button id="clearAll">🗑 Pašalinti visus</button><button id="resetAll">↺ Pradiniai atlikėjai</button></div>
+  <div class="artbtns"><button id="clearAll">🗑 Pašalinti visus</button><button id="resetAll">↺ Numatytieji</button></div>
 
   <section class="stage" id="game" data-mode="clip">
     <div class="clock" id="clock" hidden><span id="ct"></span><div class="cbar"><i id="cb"></i></div></div>
@@ -215,7 +233,7 @@ button,input{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 // Įklijuok savo Ko-fi / Buy Me a Coffee / Patreon nuorodą, kad atsirastų „Paremti" mygtukas
 const SUPPORT_URL="";
 const SILENT="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=";
-const BLUR=[16,11,7,3,0],STAGES=[0.1,0.5,2,8,15],$=id=>document.getElementById(id);
+const BLUR=[16,11,7,3,0],STAGES=[0.2,0.5,2,8,15],$=id=>document.getElementById(id);
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const nt=s=>(s||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/\(.*?\)|\[.*?\]|feat.*$|- .*(remaster|version|edit).*$/g,"").replace(/[^a-z0-9]/g,"");
 const ld=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch(e){return d}};
@@ -277,21 +295,21 @@ function draw(){
   $("pips").innerHTML=BLUR.map((_,i)=>`<i class="${i<=stage?"on":""}"></i>`).join("")+`<span>Paryškinta ${stage}×</span>`;
   if(mode==="cover"){const b=done?0:BLUR[stage],c=$("cov");c.style.filter=`blur(${b}px)`;c.style.transform=b?"scale(1.15)":"none";}
   $("tries").innerHTML=tries.map(t=>`<div class="try">${esc(t.title)} – ${esc(t.artist)}</div>`).join("");
-  $("pot").textContent=mode==="speed"||done||!cur?"":`Už atsakymą: ${pot()} tšk.`;
+  $("pot").textContent=mode==="speed"||done||!cur?"":`Už atsakymą dabar: ${pot()} tšk.${leftTxt()}`;
   $("hint").hidden=mode==="speed";$("hint").disabled=!cur||done||hints>=3;$("hint").textContent=hints>=3?"💡 Užuominų nebėra":"💡 Užuomina (−1)";
 }
 function setFill(w,t){const f=$("fill");f.style.transition="none";f.style.transform="scaleX(0)";void f.offsetWidth;if(t){f.style.transition=`transform ${t}s linear`;f.style.transform=`scaleX(${w/100})`}}
 
 /* ----- raundas ----- */
 const rkey=()=>mode+"|"+[...on].join("|")+"|"+daily;
-async function fetchRound(warm){
-  const r=await fetch("/api/round?a="+encodeURIComponent([...on].join("|"))+(daily?"&daily=1":""));
+async function fetchRound(warm,id){
+  const r=await fetch("/api/round?a="+encodeURIComponent([...on].join("|"))+(daily?"&daily=1":"")+(id?"&id="+id:""));
   if(!r.ok)throw 0;const t=await r.json();
   let w=null;if(warm){w=new Audio();w.preload="auto";w.src=t.preview;} // pašildo kitą dainą iš anksto
   return{t,w,start:Math.min(t.start||0,14)};
 }
 async function newRound(){
-  if(!on.size){emptyState();return;}
+  if(!on.size&&!daily){emptyState();return;}
   if(mode==="speed"&&!(spd&&spd.running)){speedIntro();return;}
   if(daily){const d=ld("daily",null);if(d&&d.d===today()){showDailyDone(d);return;}}
   if(mode==="rounds")$("rc").textContent=`Raundas ${rd.n}/10 · iš viso ${rd.pts} tšk.`;
@@ -301,17 +319,18 @@ async function newRound(){
   $("play").disabled=$("skip").disabled=$("q").disabled=true;$("play").textContent="…";draw();
   try{
     if(mode==="cover"){
-      const r=await fetch("/api/round?mode=cover&a="+encodeURIComponent([...on].join("|")));
+      const aid=await nextId("a");if(aid===false){showComplete();return;}
+      const r=await fetch("/api/round?mode=cover&a="+encodeURIComponent([...on].join("|"))+(aid?"&album="+aid:""));
       if(!r.ok)throw 0;const t=await r.json();
       await new Promise(ok=>{const i=new Image();i.onload=i.onerror=ok;i.src=t.coverBig||t.cover});
-      if(my!==tok)return;cur=t;$("cov").src=t.coverBig||t.cover;draw();
+      if(my!==tok)return;cur=t;t0=Date.now();$("cov").src=t.coverBig||t.cover;draw();
       $("skip").disabled=$("q").disabled=false;
     }else{
       let R=null;if(pre&&pre.k===rkey())R=await pre.p;pre=null;
-      if(!R)R=await fetchRound();if(my!==tok)return;
-      cur=R.t;start=R.start;audio.oncanplay=null;audio.pause();audio.src=R.t.preview;audio.volume=vol;audio.load();
+      if(!R){const id=await nextId("t");if(id===false){showComplete();return;}R=await fetchRound(false,id);}if(my!==tok)return;
+      cur=R.t;start=R.start;t0=Date.now();audio.oncanplay=null;audio.pause();audio.src=R.t.preview;audio.volume=vol;audio.load();
       $("play").disabled=$("skip").disabled=$("q").disabled=false;$("play").textContent="▶";draw();
-      if(!daily)pre={k:rkey(),p:fetchRound(true).catch(()=>null)};
+      if(!daily){const k=rkey();nextId("t",cur.id).then(id=>{if(id!==false&&k===rkey())pre={k,p:fetchRound(true,id).catch(()=>null)}}).catch(()=>{});}
       if(mode==="speed")playClip(STAGES[0]);
     }
   }catch(e){if(my===tok){showErr("Nepavyko įkelti. Patikrink ryšį arba pasirink kitą atlikėją.");$("skip").disabled=false;}}
@@ -323,7 +342,7 @@ function speedIntro(){
   stopAudio();++tok;cur=null;if(spd&&spd.iv)clearInterval(spd.iv);$("clock").hidden=true;
   $("play").disabled=$("skip").disabled=$("q").disabled=true;
   $("reveal").hidden=false;
-  $("reveal").innerHTML='<div class="reveal"><div><div class="res">60 sekundžių</div><p>Atspėk kuo daugiau dainų. Neteisingas spėjimas ar „Praleisti" atskleidžia ilgesnį klipą, o neatspėjus einama prie kitos dainos.</p></div></div><button class="next" id="go">Pradėti</button>';
+  $("reveal").innerHTML='<div class="reveal"><div><div class="res">⚡ 60 sekundžių</div><p>Atspėk kuo daugiau dainų. Neteisingas spėjimas ar „Praleisti" atskleidžia ilgesnį klipą, o neatspėjus einama prie kitos dainos.</p></div></div><button class="next" id="go">Pradėti</button>';
   $("go").onclick=speedStart;$("go").focus();
 }
 function speedStart(){
@@ -337,12 +356,12 @@ function tick(){
   if(left<=0)speedEnd();
 }
 function speedEnd(){
-  clearInterval(spd.iv);spd.running=false;++tok;stopAudio();
+  clearInterval(spd.iv);spd.running=false;if(spd.count>=10)unlock("speed10");++tok;stopAudio();
   $("q").disabled=$("skip").disabled=$("play").disabled=true;$("sugg").hidden=true;$("flash").hidden=true;
   const n=spd.count;$("reveal").hidden=false;
   $("reveal").innerHTML=`<div class="reveal"><div><div class="res ok">Laikas baigėsi!</div><h2>Atspėjai ${n} ${lt(n)}</h2></div></div><button class="next" id="again">Žaisti dar kartą</button><button class="next share" id="share">Kopijuoti rezultatą</button>`;
   $("again").onclick=speedStart;
-  $("share").onclick=async()=>{const txt=`Atspėk dainą 60 s: ${n} ${lt(n)}\n${location.origin}`;
+  $("share").onclick=async()=>{const txt=`Atspėk dainą ⚡ 60 s: ${n} ${lt(n)}\n${location.origin}`;
     try{await navigator.clipboard.writeText(txt);$("share").textContent="Nukopijuota!"}catch(e){prompt("Nukopijuok:",txt)}};
 }
 function setMode(m){
@@ -360,6 +379,44 @@ function playClip(len){
   if(audio.readyState>=3)go();else audio.oncanplay=go;
 }
 function advance(){if(stage>=STAGES.length-1)return finish(false);stage++;draw();if(mode!=="cover")playClip(STAGES[stage]);}
+let t0=Date.now(),cdIv,pl=null,plk="";
+const played=ld("played",{t:{},a:{}});
+const prof=ld("prof",{nick:"",g:0,w:0,ms:0,days:[],art:{},ach:{},best:0});
+document.documentElement.dataset.theme=ld("theme","dark");
+async function getPool(){const k=[...on].join("|");if(pl&&plk===k)return pl;pl=await(await fetch("/api/pool?a="+encodeURIComponent(k))).json();plk=k;return pl;}
+async function nextId(kind,excl){
+  if(daily||mode==="speed")return undefined;
+  const P=await getPool(),ids=P[kind].filter(i=>!(i in played[kind])&&i!==excl);
+  return ids.length?ids[Math.random()*ids.length|0]:false;
+}
+const leftTxt=()=>{if(daily||mode==="speed"||!pl)return"";const k=mode==="cover"?"a":"t";return` · Liko: ${pl[k].filter(i=>!(i in played[k])).length}`};
+async function showComplete(){
+  const P=await getPool(),cv=mode==="cover",k=cv?"a":"t",ids=P[k],tot=ids.length,ok=ids.filter(i=>played[k][i]===1).length;
+  $("game").hidden=true;$("reveal").hidden=false;
+  $("reveal").innerHTML=`<div class="rev"><div class="stamp ok">VISOS!</div><h2>${ok} / ${tot}</h2><p>${cv?"albumų":"dainų"} atspėta${on.size===1?" – "+esc([...on][0]):""}. Neatspėta: ${tot-ok}.</p><div class="two"><button class="next" id="again3">Pradėti iš naujo ⏭</button></div></div>`;
+  boom();$("again3").onclick=()=>{ids.forEach(i=>delete played[k][i]);sv("played",played);newRound();};
+}
+const msLeft=()=>{const v=new Date(new Date().toLocaleString("en-US",{timeZone:"Europe/Vilnius"})),m=new Date(v);m.setHours(24,0,0,0);return m-v};
+function cdTick(){const e=$("cd");if(!e){clearInterval(cdIv);return;}const t=Math.max(0,msLeft()/1000|0);
+  e.textContent=[t/3600|0,(t/60|0)%60,t%60].map(x=>String(x).padStart(2,"0")).join(":");if(t<=0){clearInterval(cdIv);newRound();}}
+const ACH=[["first","🏁","Pirmas žingsnis","Atspėk pirmą dainą"],["fast","⚡","Žaibas","Atspėk pirmame etape"],["s5","🔥","Serija 5","5 atspėtos iš eilės"],["fan","🎤","Fanas","5 vieno atlikėjo dainos"],["days7","📅","Priklausomas","Žaisk 7 dienas iš eilės"],["cover","🖼️","Akylas","Atspėk viršelį"],["speed10","⏱️","Greitukas","10 atspėtų per 60 s"],["tour","🏆","Turnyras","Baik 10 raundų"]];
+function toast(t){const e=$("toast");e.textContent=t;e.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>{e.hidden=true},3500);}
+function unlock(id){if(prof.ach[id])return;prof.ach[id]=1;sv("prof",prof);const a=ACH.find(x=>x[0]===id);toast(`🏅 ${a[2]}: ${a[3]}`);}
+function dayStreak(){const d=new Set(prof.days);let n=0,x=new Date(today());while(d.has(x.toISOString().slice(0,10))){n++;x.setUTCDate(x.getUTCDate()-1)}return n;}
+function record(won,st,artist,m){
+  prof.g++;prof.ms+=Date.now()-t0;const t=today();if(!prof.days.includes(t))prof.days.push(t);
+  if(won){prof.w++;prof.art[artist]=(prof.art[artist]||0)+1;unlock("first");if(st===0)unlock("fast");if(streak>=5)unlock("s5");if(prof.art[artist]>=5)unlock("fan");if(m==="cover")unlock("cover");}
+  if(dayStreak()>=7)unlock("days7");prof.best=Math.max(prof.best,streak);sv("prof",prof);
+}
+function openProfile(){
+  $("nick").value=prof.nick;const top=Object.entries(prof.art).sort((a,b)=>b[1]-a[1])[0],pct=prof.g?Math.round(prof.w/prof.g*100):0;
+  $("stats").innerHTML=[["Sužaista",prof.g],["Atspėta",prof.w+" ("+pct+"%)"],["Geriausia serija",prof.best],["Taškai",score],["Žaidimo laikas",Math.round(prof.ms/60000)+" min"],["Mėgstamiausias",top?esc(top[0]):"–"]].map(([a,b])=>`<div>${a}<b>${b}</b></div>`).join("");
+  $("badges").innerHTML=ACH.map(a=>`<div class="badge ${prof.ach[a[0]]?"":"off"}" title="${esc(a[3])}">${a[1]}<small>${esc(a[2])}</small></div>`).join("");
+  $("profile").hidden=false;
+}
+$("profBtn").onclick=openProfile;$("profClose").onclick=()=>{$("profile").hidden=true};
+$("nick").oninput=e=>{prof.nick=e.target.value.slice(0,16);sv("prof",prof)};
+$("themeBtn").onclick=()=>{const t=document.documentElement.dataset.theme==="light"?"dark":"light";document.documentElement.dataset.theme=t;sv("theme",t)};
 function boom(small){
   if(matchMedia("(prefers-reduced-motion:reduce)").matches)return;
   const c=$("fx"),x=c.getContext("2d");c.width=innerWidth;c.height=innerHeight;
@@ -382,12 +439,12 @@ function hintText(l){
 function emptyState(){
   ++tok;stopAudio();cur=null;$("reveal").hidden=true;$("game").hidden=false;
   $("play").disabled=$("skip").disabled=$("q").disabled=$("hint").disabled=true;$("pot").textContent="";
-  showErr("Atlikėjų nėra. Pridėk atlikėją arba spausk „Pradiniai atlikėjai“.");
+  showErr("Atlikėjų nėra. Pridėk atlikėją arba spausk „↺ Numatytieji“.");
 }
 function revealHTML(c,won,pts,cv,locked,nextLabel){
   const title=cv?c.album:c.title,img=c.coverBig||c.cover,
-    link=cv?`https://www.deezer.com/album/${c.albumId}`:`https://www.deezer.com/track/${c.id}`;
-  return `<div class="rev"><div class="stamp ${won?"ok":"bad"}">${won?"ATSPĖTA!":"NEATSPĖTA"}</div>${img?`<img class="big" src="${esc(img)}" alt="">`:""}${esc(title)}</h2><p>${esc(c.artist)}${!cv&&c.album?" · "+esc(c.album):""}</p>${won?`<div class="pts">+${pts} ${pts===1?"taškas":"taškai"}</div>`:""}${locked?'<p class="lock">🔒 Dienos daina jau žaista. Nauja bus rytoj!</p>':(cv?"":'<button class="pp" id="pp">⏸ Sustabdyti peržiūrą</button>')}<a class="dl" href="${link}" target="_blank" rel="noopener">Klausyti per Deezer ↗</a><div class="two"><button class="next share" id="share">Pasidalinti</button><button class="next" id="next">${nextLabel}</button></div></div>`;
+    q=encodeURIComponent(c.artist+" "+title),link=cv?`https://www.deezer.com/album/${c.albumId}`:`https://www.deezer.com/track/${c.id}`;
+  return `<div class="rev"><div class="stamp ${won?"ok":"bad"}">${won?"ATSPĖTA!":"NEATSPĖTA"}</div>${img?`<img class="big" src="${esc(img)}" alt="">`:""}<h2>${esc(title)}</h2><p>${esc(c.artist)}${!cv&&c.album?" · "+esc(c.album):""}</p>${won?`<div class="pts">+${pts} ${pts===1?"taškas":"taškai"}</div>`:""}${locked?'<p class="lock">🔒 Dienos daina jau žaista. Kita po <b id="cd">--:--:--</b></p>':(cv?"":'<button class="pp" id="pp">⏸ Sustabdyti peržiūrą</button>')}<div class="links"><a href="${link}" target="_blank" rel="noopener">Deezer</a><a href="https://open.spotify.com/search/${q}" target="_blank" rel="noopener">Spotify</a><a href="https://www.youtube.com/results?search_query=${q}" target="_blank" rel="noopener">YouTube</a><a href="https://music.apple.com/search?term=${q}" target="_blank" rel="noopener">Apple Music</a></div><div class="two"><button class="next share" id="share">Pasidalinti</button><button class="next" id="next">${nextLabel}</button></div></div>`;
 }
 function wireShare(won,st,cv){
   $("share").onclick=async()=>{const sq=STAGES.map((_,i)=>won?(i<st?"🟥":i===st?"🟩":"⬛"):"🟥").join("");
@@ -397,20 +454,20 @@ function wireShare(won,st,cv){
 function showDailyDone(d){
   ++tok;stopAudio();cur=null;done=true;$("game").hidden=true;$("reveal").hidden=false;
   $("reveal").innerHTML=revealHTML(d.song,d.won,d.pts,false,true,"Žaisti įprastą režimą ⏭");
-  wireShare(d.won,d.stage,false);$("next").onclick=()=>{daily=false;chips();newRound();};
+  wireShare(d.won,d.stage,false);$("next").onclick=()=>{daily=false;chips();newRound();};clearInterval(cdIv);cdIv=setInterval(cdTick,1000);cdTick();
 }
 function showSummary(){
   const n=rd.pts,max=STAGES.length*10,msg=n>=40?"Legenda! 🔥":n>=25?"Puikiai! 🎉":n>=12?"Neblogai 👍":"Dar pasitreniruok 🎧";
   $("game").hidden=true;$("reveal").hidden=false;
-  $("reveal").innerHTML=`<div class="rev"><div class="stamp ok">PABAIGA</div><small class="was">TAVO REZULTATAS_</small><h2>${n} / ${max} taškų</h2><p>${msg}</p><div class="two"><button class="next share" id="share">Pasidalinti</button><button class="next" id="again2">Žaisti dar kartą ⏭</button></div></div>`;
-  if(n>=25)boom();
+  $("reveal").innerHTML=`<div class="rev"><div class="stamp ok">PABAIGA</div><h2>${n} / ${max} taškų</h2><p>${msg}</p><div class="two"><button class="next share" id="share">Pasidalinti</button><button class="next" id="again2">Žaisti dar kartą ⏭</button></div></div>`;
+  unlock("tour");if(n>=25)boom();
   $("share").onclick=async()=>{const txt=`Atspėk dainą 🏆 10 raundų: ${n}/${max}\n${location.origin}`;
     try{await navigator.clipboard.writeText(txt);$("share").textContent="Nukopijuota!"}catch(e){prompt("Nukopijuok:",txt)}};
   $("again2").onclick=()=>{rd={n:1,pts:0};newRound();};
 }
 function finish(won){
   if(mode==="speed"&&spd&&spd.running){
-    stopAudio();if(won){spd.count++;boom(true);}tick();if(!spd.running)return;
+    stopAudio();record(won,stage,cur.artist,"speed");if(won){spd.count++;boom(true);}tick();if(!spd.running)return;
     const f=$("flash");f.hidden=false;f.innerHTML=`${won?"✔":"✖"} ${esc(cur.title)} <small>– ${esc(cur.artist)}</small>`;
     clearTimeout(flt);flt=setTimeout(()=>{f.hidden=true},2000);newRound();return;
   }
@@ -418,6 +475,7 @@ function finish(won){
   const cv=mode==="cover",pts=won?pot():0;
   if(won){score+=pts;streak++;if(streak>best.streak){best.streak=streak;sv("best",best)}}else streak=0;
   if(mode==="rounds")rd.pts+=pts;
+  record(won,stage,cur.artist,mode);if(!daily){played[cv?"a":"t"][cv?cur.albumId:cur.id]=won?1:0;sv("played",played);}
   sv("score",score);$("score").textContent=score;$("streak").textContent=streak;$("best").textContent=best.streak;
   if(won){const sc=$("score");sc.classList.remove("pop");void sc.offsetWidth;sc.classList.add("pop");boom();}
   if(daily)sv("daily",{d:today(),won,pts,stage,song:{id:cur.id,title:cur.title,artist:cur.artist,album:cur.album,albumId:cur.albumId,cover:cur.cover,coverBig:cur.coverBig}});
@@ -439,7 +497,7 @@ $("q").oninput=e=>{
   clearTimeout(st);const v=e.target.value.trim();if(v.length<2){$("sugg").hidden=true;return;}
   st=setTimeout(async()=>{
     try{const l=await (await fetch("/api/search?q="+encodeURIComponent(v)+"&a="+encodeURIComponent([...on].join("|"))+(mode==="cover"?"&album=1":"")+(daily?"&daily=1":""))).json();
-    $("sugg").innerHTML=l.map((t,i)=>`<li tabindex="0" data-i="${i}">${t.cover?`<img src="${esc(t.cover)}" alt="">`:""}<span>${esc(t.title)}<small>${esc(t.artist)}</small></span></li>`).join("");
+    $("sugg").innerHTML=l.map((t,i)=>`<li tabindex="0" data-i="${i}">${t.cover&&mode!=="cover"?`<img src="${esc(t.cover)}" alt="">`:""}<span>${esc(t.title)}<small>${esc(t.artist)}</small></span></li>`).join("");
     if($("q").value.trim()!==v)return;$("sugg").hidden=!l.length;$("sugg").list=l;hi=0;mark();}catch(err){}
   },250);
 };
