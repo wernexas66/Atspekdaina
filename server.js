@@ -26,8 +26,13 @@ const liveTracks=name=>cached("t:"+norm(name),async()=>{
   const a=await findArtist(name);if(!a)return[];
   const top=await dz(`/artist/${a.id}/top?limit=100`);
   const se=await dz("/search?limit=100&q="+encodeURIComponent(`artist:"${a.name}"`));
+  const se2=await dz("/search?limit=100&index=100&q="+encodeURIComponent(`artist:"${a.name}"`));
+  const ab=[];  // visų albumų ir singlų dainos
+  const albs=((await dz(`/artist/${a.id}/albums?limit=100`)).data)||[];
+  for(const al of albs){const t=((await dz(`/album/${al.id}/tracks?limit=100`)).data)||[];
+    for(const x of t)ab.push({...x,album:{id:al.id,title:al.title,cover_medium:al.cover_medium,cover_big:al.cover_big}});}
   const seen=new Set(),out=[];
-  [...(top.data||[]),...(se.data||[])].forEach(x=>{
+  [...ab,...(top.data||[]),...(se.data||[]),...(se2.data||[])].forEach(x=>{
     if(!x.artist||x.artist.id!==a.id)return;
     const title=x.title_short||x.title,k=norm(title);if(seen.has(k))return;seen.add(k);
     out.push({id:x.id,title,artist:a.name,cover:x.album&&(x.album.cover_medium||x.album.cover),coverBig:x.album&&(x.album.cover_big||x.album.cover_xl),album:x.album&&x.album.title,albumId:x.album&&x.album.id});

@@ -374,9 +374,13 @@ function setPlaying(p){playing=p;$("play").textContent=p?"⏸":"▶";const pp=$(
   if(!p){const f=$("fill"),m=getComputedStyle(f).transform;f.style.transition="none";f.style.transform=m&&m!=="none"?m:"scaleX(0)";}}
 function stopAudio(){clearTimeout(timer);audio.pause();setPlaying(false);}
 function playClip(len){
-  clearTimeout(timer);audio.oncanplay=null;
-  const go=()=>{audio.oncanplay=null;audio.currentTime=start;audio.play().catch(()=>{});setPlaying(true);setFill(len/15*100,len);timer=setTimeout(stopAudio,len*1000);};
-  if(audio.readyState>=3)go();else audio.oncanplay=go;
+  // telefonuose garsas pradedamas kraunti tik po paspaudimo, todėl play() kviečiamas iškart, o laikas skaičiuojamas nuo tikro pradėjimo
+  clearTimeout(timer);audio.oncanplay=null;audio.onplaying=null;audio.pause();
+  try{audio.currentTime=start}catch(e){}
+  const pr=audio.play();if(pr&&pr.catch)pr.catch(()=>{});
+  setPlaying(true);
+  audio.onplaying=()=>{audio.onplaying=null;if(Math.abs(audio.currentTime-start)>1)audio.currentTime=start;
+    setFill(len/15*100,len);clearTimeout(timer);timer=setTimeout(stopAudio,len*1000);};
 }
 function advance(){if(stage>=STAGES.length-1)return finish(false);stage++;draw();if(mode!=="cover")playClip(STAGES[stage]);}
 let t0=Date.now(),cdIv,pl=null,plk="";
