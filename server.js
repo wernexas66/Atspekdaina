@@ -2,7 +2,7 @@
 const http=require("http"),fs=require("fs"),path=require("path");
 const PORT=process.env.PORT||3000, DZ="https://api.deezer.com";
 // Numatyti atlikėjai. Daugiau galima pridėti pačiame puslapyje.
-const ARTISTS=["OG Version","Proflame","Jazzu","Andrius Mamontovas","Jurga","Monika Liu","The Roop","Silvester Belt","Justinas Jarutis","Jessica Shy","Donny Montell","Vaidas Baumila","G&G Sindikatas","Skamp","Lemon Joy","Foje","Rokas Yan","Leon Somov"];
+const ARTISTS=["OG Version","Jazzu","Monika Liu","Justinas Jarutis","Jessica Shy","Donny Montell","Vaidas Baumila","Lemon Joy","Foje"];
 const norm=x=>(x||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9 ]/g," ").replace(/\s+/g," ").trim();
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 // Deezer leidžia ~50 užklausų per 5 s, todėl jas siunčiame po vieną
