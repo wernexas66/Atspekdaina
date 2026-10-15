@@ -277,7 +277,7 @@ function draw(){
   $("pips").innerHTML=BLUR.map((_,i)=>`<i class="${i<=stage?"on":""}"></i>`).join("")+`<span>Paryškinta ${stage}×</span>`;
   if(mode==="cover"){const b=done?0:BLUR[stage],c=$("cov");c.style.filter=`blur(${b}px)`;c.style.transform=b?"scale(1.15)":"none";}
   $("tries").innerHTML=tries.map(t=>`<div class="try">${esc(t.title)} – ${esc(t.artist)}</div>`).join("");
-  $("pot").textContent=mode==="speed"||done||!cur?"":`Už atsakymą dabar: ${pot()} tšk.`;
+  $("pot").textContent=mode==="speed"||done||!cur?"":`Už atsakymą: ${pot()} tšk.`;
   $("hint").hidden=mode==="speed";$("hint").disabled=!cur||done||hints>=3;$("hint").textContent=hints>=3?"💡 Užuominų nebėra":"💡 Užuomina (−1)";
 }
 function setFill(w,t){const f=$("fill");f.style.transition="none";f.style.transform="scaleX(0)";void f.offsetWidth;if(t){f.style.transition=`transform ${t}s linear`;f.style.transform=`scaleX(${w/100})`}}
