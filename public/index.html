@@ -142,12 +142,37 @@ button,input{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 #hint{background:transparent;border:1px solid var(--line);color:var(--ink);border-radius:12px;padding:12px 14px;cursor:pointer;font:inherit}
 #hint:disabled,#skip:disabled{opacity:.45;cursor:default}
 @media (max-width:520px){#hint{flex:1;padding:14px 10px}}
+.corners{position:absolute;top:14px;right:14px;z-index:10;display:flex;gap:6px}
+.intro{position:fixed;inset:0;z-index:60;background:rgba(6,16,24,.93);display:flex;align-items:center;justify-content:center;padding:20px;overflow:auto}
+.introcard{max-width:440px;width:100%;background:var(--panel);border:1px solid var(--line);border-radius:22px;padding:28px 22px 22px;text-align:center;animation:pts .45s cubic-bezier(.2,1.4,.4,1)}
+.introplay{width:72px;height:72px;margin:0 auto 14px;border-radius:50%;background:var(--amber);color:#1b1405;display:grid;place-items:center;font-size:1.9rem;padding-left:5px}
+.introcard h2{margin:0 0 6px;font-size:1.8rem;letter-spacing:-.02em}
+.introcard p{margin:0 0 14px;color:var(--mute)}
+.introcard ol{text-align:left;margin:0 0 14px;padding-left:22px;line-height:1.5}
+.introcard li{margin-bottom:8px}
+.introcard .introsub{font-size:.88rem}
+@media (max-width:520px){.corners{top:10px;right:10px}.corners .chip{font-size:.78rem;padding:5px 10px}}
+@media (prefers-reduced-motion:reduce){.introcard{animation:none}}
 </style>
 </head>
 <body>
 <div class="bg" aria-hidden="true"></div>
-<button class="chip daily corner" id="dailyBtn" aria-pressed="false">📅 Dienos daina</button>
+<div class="corners"><button class="chip" id="helpBtn" aria-label="Kaip žaisti">?</button><button class="chip daily" id="dailyBtn" aria-pressed="false">📅 Dienos daina</button></div>
 <canvas id="fx"></canvas>
+<div class="intro" id="intro" role="dialog" aria-modal="true" aria-labelledby="introT" hidden>
+  <div class="introcard">
+    <div class="introplay">▶</div>
+    <h2 id="introT">Sveikas atvykęs!</h2>
+    <p>Atspėk lietuvišką dainą iš trumpo klipo.</p>
+    <ol>
+      <li>Paspausk ▶ ir išgirsi vos <b>0,1 sekundės</b> klipą.</li>
+      <li>Įvesk dainos pavadinimą. Klaida ar „Praleisti" atskleidžia ilgesnį klipą (0,5 → 2 → 8 → 15 s).</li>
+      <li>Kuo anksčiau atspėsi, tuo daugiau taškų: <b>5, 4, 3, 2, 1</b>.</li>
+    </ol>
+    <p class="introsub">Dar rasi viršelių, 60 s ir 10 raundų režimus bei dienos dainą. Taškai išsaugomi tavo naršyklėje.</p>
+    <button class="next" id="introGo">Pradėti</button>
+  </div>
+</div>
 <main>
   <header>
     <h1>Atspėk<br>dainą</h1>
@@ -184,7 +209,7 @@ button,input{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
     <div class="err" id="err" hidden></div>
   </section>
   <div id="reveal" hidden></div>
-  <footer>Muzikos peržiūros: <a href="https://www.deezer.com" target="_blank" rel="noopener">Deezer</a><span id="sup" hidden> · <a id="supA" target="_blank" rel="noopener">☕ Paremti projektą</a></span></footer>
+  <footer>Muzikos peržiūros: <a href="https://www.deezer.com" target="_blank" rel="noopener">Deezer</a><span id="sup" hidden> · <a id="supA" target="_blank" rel="noopener">☕ Paremti projektą</a></span><span> · <a href="#" id="resetScore">Nulinti taškus</a></span></footer>
 </main>
 <script>
 // Įklijuok savo Ko-fi / Buy Me a Coffee / Patreon nuorodą, kad atsirastų „Paremti" mygtukas
@@ -440,6 +465,13 @@ $("q").onkeydown=e=>{
 /* ----- pradžia ----- */
 if(/iPad|iPhone|iPod/.test(navigator.userAgent))document.querySelector(".vol").hidden=true;
 if(SUPPORT_URL){$("supA").href=SUPPORT_URL;$("sup").hidden=false;}
+function openIntro(){$("intro").hidden=false;$("introGo").focus();}
+function closeIntro(){$("intro").hidden=true;sv("seen",true);}
+$("introGo").onclick=closeIntro;$("helpBtn").onclick=openIntro;
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!$("intro").hidden)closeIntro()});
+$("resetScore").onclick=e=>{e.preventDefault();if(!confirm("Nulinti taškus, seriją ir rekordą?"))return;
+  score=0;streak=0;best={streak:0};sv("score",0);sv("best",best);$("score").textContent=0;$("streak").textContent=0;$("best").textContent=0;};
+if(!ld("seen",false))openIntro();
 (async()=>{
   if(!all){try{all=await (await fetch("/api/artists")).json()}catch(e){all=[]}sv("all",all);}
   if(!on.size||![...on].every(n=>all.includes(n))){on=new Set(all);sv("on",[...on]);}
