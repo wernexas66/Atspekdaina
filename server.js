@@ -1,0 +1,176 @@
+// Paleisk: node server.js  ->  http://localhost:3000   (reikia Node 18+, jokių paketų diegti nereikia)
+const http=require("http"),fs=require("fs"),path=require("path");
+const PORT=process.env.PORT||3000, DZ="https://api.deezer.com";
+// Numatyti atlikėjai. Daugiau galima pridėti pačiame puslapyje.
+const ARTISTS=["OG Version","Jazzu","Andrius Mamontovas","Monika Liu","Justinas Jarutis","Jessica Shy","Vaidas Baumila","G&G Sindikatas","Lemon Joy","Foje","Mia","Leon Somov"];
+const norm=x=>(x||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9 ]/g," ").replace(/\s+/g," ").trim();
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+// Deezer leidžia ~50 užklausų per 5 s, todėl jas siunčiame po vieną
+let chain=Promise.resolve();
+async function raw(p){for(let i=0;i<3;i++){let j;try{j=await(await fetch(DZ+p)).json()}catch(e){return{}}if(j.error&&j.error.code===4){await sleep(2500);continue}return j}return{}}
+// prio=true: svarbi užklausa (dabartinė daina, paieška) – nelaukia fono eilėje
+function dz(p,prio){if(prio)return raw(p);const r=chain.then(async()=>{await sleep(120);return raw(p)});chain=r.catch(()=>{});return r}
+process.on("unhandledRejection",e=>console.log("Klaida:",e&&e.message));
+const cache=new Map();
+const HTMLS=new Map();
+async function cached(k,fn,ttl){const c=cache.get(k);if(c&&Date.now()-c.t<ttl)return c.v;const v=await fn();if(v!=null&&!(Array.isArray(v)&&!v.length))cache.set(k,{t:Date.now(),v});return v}
+const findArtist=n=>cached("a:"+norm(n),async()=>{
+  const l=((await dz("/search/artist?limit=5&q="+encodeURIComponent(n),true)).data)||[];
+  const ex=l.filter(a=>norm(a.name)===norm(n));
+  const a=(ex.length?ex:l).sort((x,y)=>(y.nb_fan||0)-(x.nb_fan||0))[0];
+  return a?{id:a.id,name:a.name}:null;
+},864e5);
+// Dainos tik iš pasirinkto atlikėjo: greitas sąrašas iškart, pilnas (visi albumai) kraunamas fone
+async function build(a,deep){
+  const P=!deep; // greitos užklausos eina be eilės
+  const top=await dz(`/artist/${a.id}/top?limit=100`,P);
+  const se=await dz("/search?limit=100&q="+encodeURIComponent(`artist:"${a.name}"`),P);
+  const ab=[];let se2={};
+  if(deep){
+    se2=await dz("/search?limit=100&index=100&q="+encodeURIComponent(`artist:"${a.name}"`));
+    const albs=((await dz(`/artist/${a.id}/albums?limit=100`)).data)||[];
+    for(const al of albs){const t=((await dz(`/album/${al.id}/tracks?limit=100`)).data)||[];
+      for(const x of t)ab.push({...x,album:{id:al.id,title:al.title,cover_medium:al.cover_medium,cover_big:al.cover_big}});}
+  }
+  const seen=new Set(),out=[];
+  [...ab,...(top.data||[]),...(se.data||[]),...(se2.data||[])].forEach(x=>{
+    if(!x.artist||x.artist.id!==a.id)return;
+    const title=x.title_short||x.title,k=norm(title);if(seen.has(k))return;seen.add(k);
+    out.push({id:x.id,title,artist:a.name,cover:x.album&&(x.album.cover_medium||x.album.cover),coverBig:x.album&&(x.album.cover_big||x.album.cover_xl),album:x.album&&x.album.title,albumId:x.album&&x.album.id});
+  });
+  return out;
+}
+const crawling=new Set();
+function crawl(a,name){
+  if(crawling.has(a.id))return;crawling.add(a.id);
+  build(a,true).then(out=>{if(out.length){cache.set("t:"+norm(name),{t:Date.now(),v:out});pmemo.clear()}}).catch(()=>{}).finally(()=>crawling.delete(a.id));
+}
+const liveTracks=name=>cached("t:"+norm(name),async()=>{
+  const a=await findArtist(name);if(!a)return[];
+  const out=await build(a,false);crawl(a,name);return out;
+},36e5);
+const deepTracks=async name=>{const a=await findArtist(name);return a?build(a,true):[]};
+// songs.json: iš anksto surinktos dainos (paleisk "node server.js --build" savo kompiuteryje) – svetainė startuoja iškart
+let SNAP={};try{const j=JSON.parse(fs.readFileSync(path.join(__dirname,"songs.json"),"utf8"));for(const k in j)SNAP[norm(k)]=j[k];console.log("Įkelta iš songs.json:",Object.keys(SNAP).length,"atlikėjų")}catch(e){}
+const tracksOf=name=>SNAP[norm(name)]?Promise.resolve(SNAP[norm(name)]):liveTracks(name);
+const pmemo=new Map();
+const pool=async names=>{const k=names.join("|"),c=pmemo.get(k);if(c&&Date.now()-c.t<60000)return c.v;
+  const v=(await Promise.all(names.map(tracksOf))).flat().sort((a,b)=>a.id-b.id);if(pmemo.size>40)pmemo.clear();pmemo.set(k,{t:Date.now(),v});return v};
+function seeded(str){let s=0;for(const c of str)s=(s*31+c.charCodeAt(0))>>>0;return()=>(s=(s*1664525+1013904223)>>>0)/4294967296}
+const mkOpts=(p,ans,names)=>{const pl=[...new Set([...p.map(x=>x.artist),...names,...ARTISTS])].filter(n=>norm(n)!==norm(ans));const o=[];
+  while(o.length<3&&pl.length)o.push(pl.splice(Math.random()*pl.length|0,1)[0]);o.push(ans);return o.sort(()=>Math.random()-.5)};
+async function round(names,daily,cover,id,album,yr,opts){
+  let p=await pool(daily?ARTISTS:names);
+  if(cover){p=p.filter(t=>t.albumId&&t.album&&t.cover);if(!p.length)throw new Error("Nepavyko rasti albumų");
+    const t=(album&&p.find(x=>String(x.albumId)===album))||p[Math.floor(Math.random()*p.length)];return{id:t.id,title:t.title,artist:t.artist,album:t.album,albumId:t.albumId,cover:t.cover,coverBig:t.coverBig||t.cover};}
+  if(!p.length)throw new Error("Nepavyko rasti dainų");
+  const day=new Date().toLocaleDateString("sv",{timeZone:"Europe/Vilnius"});
+  const rnd=daily?seeded(day):Math.random;
+  let i=id?Math.max(0,p.findIndex(x=>String(x.id)===id)):Math.floor(rnd()*p.length);
+  for(let k=0;k<10;k++,i=(i+1)%p.length){
+    const f=await dz("/track/"+p[i].id,true); // šviežia peržiūros nuoroda (jos greitai nebegalioja)
+    if(f.preview&&(!yr||+(f.release_date||"").slice(0,4)>1900))return{opts:opts?mkOpts(p,p[i].artist,names):undefined,year:+(f.release_date||"").slice(0,4)||0,id:f.id,title:f.title_short||f.title,artist:p[i].artist,cover:f.album&&(f.album.cover_medium||f.album.cover),coverBig:f.album&&(f.album.cover_big||f.album.cover_xl),album:f.album&&f.album.title,albumId:f.album&&f.album.id,preview:f.preview,start:rnd()*14};
+  }
+  throw new Error("Nepavyko rasti dainos");
+}
+async function search(q,names,album){
+  const v=norm(q);if(v.length<2)return[];
+  if(album){const seen=new Set(),out=[];
+    for(const t of await pool(names)){if(!t.albumId||seen.has(t.albumId))continue;
+      if(norm(t.album+" "+t.artist).includes(v)){seen.add(t.albumId);out.push({id:t.albumId,title:t.album,artist:t.artist,cover:t.cover});if(out.length>=8)break}}
+    return out;}
+  return(await pool(names)).filter(t=>norm(t.title+" "+t.artist).includes(v)).slice(0,8);
+}
+// ---- lyderių lentelė (nuolatinė, jei nustatytas Upstash Redis; kitaip tik atmintyje) ----
+const LF=process.env.HL_SOURCE==="lastfm"?process.env.LASTFM_API_KEY:"",LM=process.env.LASTFM_METRIC==="playcount"?"playcount":"listeners";
+const day=()=>new Date().toLocaleDateString("sv",{timeZone:"Europe/Vilnius"});
+const UP=process.env.UPSTASH_REDIS_REST_URL,UT=process.env.UPSTASH_REDIS_REST_TOKEN,mem={},hits=new Map();
+const rc=async a=>(await(await fetch(UP,{method:"POST",headers:{Authorization:"Bearer "+UT},body:JSON.stringify(a)})).json()).result;
+async function lbAdd(n,p){for(const k of["lb:all","lb:"+day()]){if(UP){await rc(["ZINCRBY",k,p,n]);if(k!=="lb:all")await rc(["EXPIRE",k,172800])}else{mem[k]=mem[k]||{};mem[k][n]=(mem[k][n]||0)+p}}}
+async function lbTop(k){if(UP){const r=await rc(["ZREVRANGE",k,0,9,"WITHSCORES"]),o=[];for(let i=0;i<r.length;i+=2)o.push({n:r[i],p:+r[i+1]});return o}
+  return Object.entries(mem[k]||{}).map(([n,p])=>({n,p})).sort((a,b)=>b.p-a.p).slice(0,10)}
+const readJ=async r=>{let b="";for await(const c of r){b+=c;if(b.length>2000)break}try{return JSON.parse(b)}catch(e){return{}}};
+const originOf=req=>{let h=req.headers["x-forwarded-host"]||req.headers.host||"";if(!/^[a-z0-9.-]+(:\d+)?$/i.test(h))h="atspekdaina.eu";return(/^(localhost|127\.)/.test(h)?"http://":"https://")+h};
+// ---- multiplayer kambariai (atmintyje) ----
+const rooms=new Map(),uid=()=>Math.random().toString(36).slice(2,8);
+async function mpRound(r){
+  let f={},id;
+  while(r.i<r.ids.length){id=r.ids[r.i];f=await dz("/track/"+id,true);if(f.preview)break;r.i++}
+  if(r.i>=r.ids.length){r.phase="final";return false}
+  r.cur={id,title:f.title_short||f.title||"?",artist:(f.artist&&f.artist.name)||"",album:f.album&&f.album.title,cover:f.album&&(f.album.cover_big||f.album.cover_medium),preview:f.preview,start:Math.random()*14,t0:Date.now()+3000};
+  r.phase="play";for(const p of Object.values(r.players))p.ans=0;return true;
+}
+async function mpState(r,pid){
+  const now=Date.now(),P=Object.values(r.players);
+  if(r.phase==="play"&&(now>r.cur.t0+25000||P.every(p=>p.ans))){r.phase="reveal";r.rt=now}
+  else if(r.phase==="reveal"&&now>r.rt+6000&&!r.busy){r.busy=1;try{if(++r.i>=r.ids.length)r.phase="final";else await mpRound(r)}finally{r.busy=0}}
+  const c=r.cur,rev=r.phase==="reveal"&&c,live=c&&(r.phase==="play"||rev);
+  return{ph:r.phase,i:r.i,n:r.ids.length,secs:r.secs,one:r.one,now,host:r.host===pid,code:r.code,names:r.names,
+    pl:P.map(p=>({n:p.name,s:p.score,d:!!p.ans})).sort((a,b)=>b.s-a.s),
+    cur:live?{preview:c.preview,start:c.start,t0:c.t0,...(rev?{title:c.title,artist:c.artist,album:c.album,cover:c.cover}:{})}:null};
+}
+const send=(res,code,obj)=>{res.writeHead(code,{"Content-Type":"application/json; charset=utf-8"});res.end(JSON.stringify(obj))};
+const server=http.createServer(async(req,res)=>{
+  const u=new URL(req.url,"http://x"),q=u.searchParams,n=(q.get("a")||"").split("|").filter(Boolean),names=n.length?n:ARTISTS;
+  try{
+    if(u.pathname==="/api/artists")return send(res,200,ARTISTS);
+    if(u.pathname==="/api/artist"){const a=await findArtist(q.get("name")||"");return a?send(res,200,a):send(res,404,{error:"Atlikėjas nerastas"})}
+    if(u.pathname==="/api/artistsearch"){const l=((await dz("/search/artist?limit=6&q="+encodeURIComponent(q.get("q")||""),true)).data)||[];return send(res,200,l.map(a=>({id:a.id,name:a.name,picture:a.picture_small})))}
+    if(u.pathname==="/api/stats"){const o={};for(const n of ARTISTS)o[n]=(await tracksOf(n)).length;return send(res,200,o)}
+    if(u.pathname==="/robots.txt"){res.writeHead(200,{"Content-Type":"text/plain"});return res.end("User-agent: *\nAllow: /\nSitemap: "+originOf(req)+"/sitemap.xml\n")}
+    if(u.pathname==="/sitemap.xml"){res.writeHead(200,{"Content-Type":"application/xml"});return res.end('<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>'+originOf(req)+'/</loc></url></urlset>')}
+    if(u.pathname==="/api/leaderboard")return send(res,200,await lbTop(q.get("w")==="all"?"lb:all":"lb:"+day()));
+    if(u.pathname==="/api/score"&&req.method==="POST"){
+      const ip=(req.headers["x-forwarded-for"]||req.socket.remoteAddress||"").split(",")[0],t=Date.now(),h=(hits.get(ip)||[]).filter(x=>t-x<6e4);
+      if(h.length>=40)return send(res,429,{error:"Per daug"});h.push(t);hits.set(ip,h);
+      const j=await readJ(req),n=String(j.n||"").replace(/[<>&"]/g,"").trim().slice(0,16),p=Math.round(+j.p);
+      if(n.length<2||!(p>=1&&p<=5))return send(res,400,{error:"Netinka"});await lbAdd(n,p);return send(res,200,{ok:1});
+    }
+    if(u.pathname==="/api/mp"&&req.method==="POST"){
+      const j=await readJ(req),a=j.a,nm=s=>String(s||"").trim().slice(0,16)||"Žaidėjas";
+      for(const[k,x]of rooms)if(Date.now()-x.made>72e5)rooms.delete(k);
+      if(a==="create"){
+        const nn=(j.names||[]).slice(0,30),p=await pool(nn.length?nn:ARTISTS),ids=p.map(x=>x.id).sort(()=>Math.random()-.5).slice(0,Math.min(20,+j.rounds||10));
+        if(!ids.length)return send(res,200,{err:"Nepavyko rasti dainų"});
+        const code=uid().slice(0,4).toUpperCase(),pid=uid();
+        rooms.set(code,{code,host:pid,names:nn.length?nn:ARTISTS,ids,i:0,secs:Math.max(1,Math.min(15,+j.secs||5)),one:!!j.one,phase:"lobby",players:{[pid]:{name:nm(j.name),score:0,ans:0}},made:Date.now()});
+        return send(res,200,{code,pid,names:nn});
+      }
+      const r=rooms.get(String(j.code||"").toUpperCase());if(!r)return send(res,200,{err:"Kambarys nerastas"});
+      if(a==="join"){if(r.phase!=="lobby")return send(res,200,{err:"Žaidimas jau prasidėjo"});if(Object.keys(r.players).length>=12)return send(res,200,{err:"Kambarys pilnas"});
+        const pid=uid();r.players[pid]={name:nm(j.name),score:0,ans:0};return send(res,200,{code:r.code,pid,names:r.names})}
+      if(a==="start"){if(r.host===j.pid&&r.phase==="lobby"&&!(await mpRound(r))){r.phase="lobby";return send(res,200,{err:"Nepavyko užkrauti dainų"})}return send(res,200,{ok:1})}
+      if(a==="guess"){const p=r.players[j.pid];if(!p||r.phase!=="play"||Date.now()<r.cur.t0||p.ans)return send(res,200,{ok:0});
+        const ok=String(j.tid)===String(r.cur.id)||(norm(j.title)===norm(r.cur.title)&&norm(j.artist)===norm(r.cur.artist));
+        if(ok){p.ans=2;p.score+=Math.max(10,100-Math.floor((Date.now()-r.cur.t0)/1000)*4)}else if(r.one)p.ans=1;
+        return send(res,200,{ok:ok?1:0,locked:!ok&&r.one?1:0})}
+      return send(res,200,await mpState(r,j.pid));
+    }
+    if(u.pathname==="/api/hl"){
+      const ex=q.get("ex"),c=(await pool(names)).filter(x=>String(x.id)!==ex);let t,f;
+      if(LF&&c.length)for(let k=0;k<8;k++){
+        t=c[Math.random()*c.length|0];
+        try{const r=await(await fetch(`https://ws.audioscrobbler.com/2.0/?method=track.getInfo&autocorrect=1&format=json&api_key=${LF}&artist=${encodeURIComponent(t.artist)}&track=${encodeURIComponent(t.title)}`)).json();
+          const L=+(r.track&&r.track[LM]);
+          if(L>0)return send(res,200,{id:t.id,title:t.title,artist:t.artist,cover:t.coverBig||t.cover,rank:L,metric:LM==="playcount"?"Last.fm paleidimų skaičius (viso laiko)":"Last.fm klausytojų skaičius (viso laiko)"});}catch(e){}
+      }
+      for(let k=0;k<6&&c.length;k++){t=c[Math.random()*c.length|0];f=await dz("/track/"+t.id,true);if(f&&f.rank)break}
+      if(!f||!f.rank)return send(res,500,{error:"Nepavyko"});
+      return send(res,200,{id:f.id,title:f.title_short||f.title,artist:t.artist,cover:f.album&&(f.album.cover_big||f.album.cover_medium),rank:f.rank,metric:"Deezer populiarumo reitingas"});
+    }
+    if(u.pathname==="/api/pool"){const p=await pool(names);return send(res,200,{t:p.map(x=>x.id),a:[...new Set(p.filter(x=>x.albumId).map(x=>x.albumId))]})}
+    if(u.pathname==="/api/round")return send(res,200,await round(names,q.get("daily")==="1",q.get("mode")==="cover",q.get("id"),q.get("album"),q.get("year")==="1",q.get("opts")==="1"));
+    if(u.pathname==="/api/search")return send(res,200,await search(q.get("q")||"",q.get("daily")==="1"?ARTISTS:names,q.get("album")==="1"));
+    if(u.pathname==="/og.png"){try{const d=fs.readFileSync(path.join(__dirname,"public","og.png"));res.writeHead(200,{"Content-Type":"image/png","Cache-Control":"public, max-age=86400"});return res.end(d)}catch(e){return send(res,404,{error:"Nerasta"})}}
+    // puslapio adresas įrašomas į nuorodų peržiūros (og:) žymas pagal tai, kuriuo adresu atidaryta svetainė
+    let host=req.headers["x-forwarded-host"]||req.headers.host||"";if(!/^[a-z0-9.-]+(:\d+)?$/i.test(host))host="atspekdaina.eu";
+    const origin=(/^(localhost|127\.)/.test(host)?"http://":"https://")+host;
+    let H=HTMLS.get(origin);
+    if(!H){try{const raw=Buffer.from(fs.readFileSync(path.join(__dirname,"public","index.html"),"utf8").split("__ORIGIN__").join(origin));H={raw,gz:require("zlib").gzipSync(raw)};if(HTMLS.size>20)HTMLS.clear();HTMLS.set(origin,H)}catch(e){return send(res,404,{error:"Nerasta"})}}
+    const gz=/gzip/.test(req.headers["accept-encoding"]||"");
+    res.writeHead(200,{"Content-Type":"text/html; charset=utf-8","Cache-Control":"no-cache",...(gz?{"Content-Encoding":"gzip"}:{})});res.end(gz?H.gz:H.raw);
+  }catch(e){send(res,500,{error:e.message})}
+});
+if(process.argv.includes("--build")){(async()=>{const o={};for(const n of ARTISTS){o[n]=await deepTracks(n);console.log(n+":",o[n].length)}
+  fs.writeFileSync(path.join(__dirname,"songs.json"),JSON.stringify(o));console.log("Išsaugota songs.json");process.exit(0)})();}
+else server.listen(PORT,()=>{console.log("Atidaryk http://localhost:"+PORT);if(Object.keys(SNAP).length<ARTISTS.length)pool(ARTISTS).then(p=>console.log("Paruošta dainų:",p.length)).catch(()=>{})});
