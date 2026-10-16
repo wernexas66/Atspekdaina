@@ -82,7 +82,7 @@ async function search(q,names,album){
   return(await pool(names)).filter(t=>norm(t.title+" "+t.artist).includes(v)).slice(0,8);
 }
 // ---- lyderių lentelė (nuolatinė, jei nustatytas Upstash Redis; kitaip tik atmintyje) ----
-const LF=process.env.LASTFM_API_KEY,LM=process.env.LASTFM_METRIC==="playcount"?"playcount":"listeners";
+const LF=process.env.HL_SOURCE==="lastfm"?process.env.LASTFM_API_KEY:"",LM=process.env.LASTFM_METRIC==="playcount"?"playcount":"listeners";
 const day=()=>new Date().toLocaleDateString("sv",{timeZone:"Europe/Vilnius"});
 const UP=process.env.UPSTASH_REDIS_REST_URL,UT=process.env.UPSTASH_REDIS_REST_TOKEN,mem={},hits=new Map();
 const rc=async a=>(await(await fetch(UP,{method:"POST",headers:{Authorization:"Bearer "+UT},body:JSON.stringify(a)})).json()).result;

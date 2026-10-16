@@ -199,6 +199,9 @@ body{align-items:flex-start;gap:24px}
 [data-mode=artist] .guess{display:none}
 #opts button{padding:14px 10px;border-radius:12px;border:1px solid var(--line);background:var(--bg2);color:var(--ink);font:inherit;font-weight:600;cursor:pointer}
 #opts button:disabled{opacity:.35;text-decoration:line-through;cursor:default}
+.intro{align-items:center}
+.introcard{margin:0;max-height:calc(100vh - 40px);max-height:calc(100dvh - 40px);overflow-y:auto}
+.lbbtn{width:100%;margin-top:8px;padding:10px;border-radius:10px;border:1px solid var(--line);background:transparent;color:var(--ink);font:inherit;cursor:pointer}
 </style>
 </head>
 <body>
@@ -207,7 +210,7 @@ body{align-items:flex-start;gap:24px}
 <canvas id="fx"></canvas>
 <div class="toast" id="toast" hidden></div>
 <div class="intro" id="mp" role="dialog" aria-modal="true" hidden><div class="introcard" id="mpBody"></div></div>
-<div class="intro" id="profile" role="dialog" aria-modal="true" hidden><div class="introcard"><h2>Profilis</h2><input type="text" id="nick" maxlength="16" placeholder="Slapyvardis" autocomplete="off"><div class="stats" id="stats"></div><div class="badges" id="badges"></div><button class="next" id="profClose">Uždaryti</button></div></div>
+<div class="intro" id="profile" role="dialog" aria-modal="true" hidden><div class="introcard"><h2>Profilis</h2><input type="text" id="nick" maxlength="16" placeholder="Slapyvardis" autocomplete="off"><button class="pp" id="nickBtn2" style="margin-top:8px">Keisti slapyvardį</button><div class="stats" id="stats"></div><div class="badges" id="badges"></div><button class="next" id="profClose">Uždaryti</button></div></div>
 <div class="intro" id="intro" role="dialog" aria-modal="true" aria-labelledby="introT" hidden>
   <div class="introcard">
     <div class="introplay"><svg viewBox="0 0 24 24" width="34" height="34" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></div>
@@ -262,7 +265,7 @@ body{align-items:flex-start;gap:24px}
   <footer>Muzikos peržiūros: <a href="https://www.deezer.com" target="_blank" rel="noopener">Deezer</a><span id="sup" hidden> · <a id="supA" target="_blank" rel="noopener"> Paremti projektą</a></span></footer>
   <p class="seo">Atspėk dainą yra nemokamas lietuvių muzikos žaidimas. Klausykis trumpo dainos klipo, atspėk pavadinimą, žaisk dienos dainą, viršelių režimą arba su draugais.</p>
 </main>
-<aside class="lb" id="lb"><h3>Lyderiai</h3><div class="lbtabs"><button id="lbDay" class="on">Šiandien</button><button id="lbAll">Viso</button></div><ol id="lbList"></ol><input type="text" id="lbNick" maxlength="16" placeholder="Tavo slapyvardis" autocomplete="off"><p class="lbhint" id="lbHint"></p></aside>
+<aside class="lb" id="lb"><h3>Lyderiai</h3><div class="lbtabs"><button id="lbDay" class="on">Šiandien</button><button id="lbAll">Viso</button></div><ol id="lbList"></ol><input type="text" id="lbNick" maxlength="16" placeholder="Tavo slapyvardis" autocomplete="off"><button class="lbbtn" id="lbNickBtn">Keisti slapyvardį</button><p class="lbhint" id="lbHint"></p></aside>
 <script>
 // Įklijuok savo Ko-fi / Buy Me a Coffee / Patreon nuorodą, kad atsirastų „Paremti" mygtukas
 const SUPPORT_URL="";
@@ -476,6 +479,9 @@ function submitScore(p){if(!prof.nick||!p)return;fetch("/api/score",{method:"POS
 $("lbDay").onclick=()=>{lbW="day";$("lbDay").classList.add("on");$("lbAll").classList.remove("on");loadLb()};
 $("lbAll").onclick=()=>{lbW="all";$("lbAll").classList.add("on");$("lbDay").classList.remove("on");loadLb()};
 $("lbNick").value=prof.nick;$("lbNick").oninput=e=>{prof.nick=e.target.value.trim().slice(0,16);sv("prof",prof);loadLb()};
+function askNick(){const n=prompt("Įrašyk slapyvardį (2–16 simbolių):",prof.nick||"");if(n===null)return;
+  prof.nick=n.replace(/[<>&"]/g,"").trim().slice(0,16);sv("prof",prof);$("lbNick").value=prof.nick;$("nick").value=prof.nick;loadLb();}
+$("lbNickBtn").onclick=askNick;$("nickBtn2").onclick=askNick;
 setInterval(loadLb,30000);loadLb();
 /* ----- multiplayer ----- */
 let mpMe="",mpC="",mpP="",mpT=null,mpK="",mpOff=0,mpNames=[],mpTO;
