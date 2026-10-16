@@ -2,7 +2,7 @@
 const http=require("http"),fs=require("fs"),path=require("path");
 const PORT=process.env.PORT||3000, DZ="https://api.deezer.com";
 // Numatyti atlikėjai. Daugiau galima pridėti pačiame puslapyje.
-const ARTISTS=["OG Version","Proflame","Jazzu","Andrius Mamontovas","Jurga","Monika Liu","The Roop","Silvester Belt","Justinas Jarutis","Jessica Shy","Donny Montell","Vaidas Baumila","G&G Sindikatas","Skamp","Lemon Joy","Foje","Rokas Yan","Leon Somov"];
+const ARTISTS=["OG Version","Jazzu","Andrius Mamontovas","Monika Liu","Justinas Jarutis","Jessica Shy","Vaidas Baumila","G&G Sindikatas","Lemon Joy","Foje","Mia","Leon Somov"];
 const norm=x=>(x||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9 ]/g," ").replace(/\s+/g," ").trim();
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 // Deezer leidžia ~50 užklausų per 5 s, todėl jas siunčiame po vieną
@@ -79,6 +79,31 @@ async function search(q,names,album){
     return out;}
   return(await pool(names)).filter(t=>norm(t.title+" "+t.artist).includes(v)).slice(0,8);
 }
+// ---- lyderių lentelė (nuolatinė, jei nustatytas Upstash Redis; kitaip tik atmintyje) ----
+const day=()=>new Date().toLocaleDateString("sv",{timeZone:"Europe/Vilnius"});
+const UP=process.env.UPSTASH_REDIS_REST_URL,UT=process.env.UPSTASH_REDIS_REST_TOKEN,mem={},hits=new Map();
+const rc=async a=>(await(await fetch(UP,{method:"POST",headers:{Authorization:"Bearer "+UT},body:JSON.stringify(a)})).json()).result;
+async function lbAdd(n,p){for(const k of["lb:all","lb:"+day()]){if(UP){await rc(["ZINCRBY",k,p,n]);if(k!=="lb:all")await rc(["EXPIRE",k,172800])}else{mem[k]=mem[k]||{};mem[k][n]=(mem[k][n]||0)+p}}}
+async function lbTop(k){if(UP){const r=await rc(["ZREVRANGE",k,0,9,"WITHSCORES"]),o=[];for(let i=0;i<r.length;i+=2)o.push({n:r[i],p:+r[i+1]});return o}
+  return Object.entries(mem[k]||{}).map(([n,p])=>({n,p})).sort((a,b)=>b.p-a.p).slice(0,10)}
+const readJ=async r=>{let b="";for await(const c of r){b+=c;if(b.length>2000)break}try{return JSON.parse(b)}catch(e){return{}}};
+const originOf=req=>{let h=req.headers["x-forwarded-host"]||req.headers.host||"";if(!/^[a-z0-9.-]+(:\d+)?$/i.test(h))h="atspekdaina.eu";return(/^(localhost|127\.)/.test(h)?"http://":"https://")+h};
+// ---- multiplayer kambariai (atmintyje) ----
+const rooms=new Map(),uid=()=>Math.random().toString(36).slice(2,8);
+async function mpRound(r){
+  const id=r.ids[r.i];let f={};for(let k=0;k<3&&!f.preview;k++)f=await dz("/track/"+id,true);
+  r.cur={id,title:f.title_short||f.title||"?",artist:(f.artist&&f.artist.name)||"",album:f.album&&f.album.title,cover:f.album&&(f.album.cover_big||f.album.cover_medium),preview:f.preview,start:Math.random()*14,t0:Date.now()+3000};
+  r.phase="play";for(const p of Object.values(r.players))p.ans=0;
+}
+async function mpState(r,pid){
+  const now=Date.now(),P=Object.values(r.players);
+  if(r.phase==="play"&&(now>r.cur.t0+25000||P.every(p=>p.ans))){r.phase="reveal";r.rt=now}
+  else if(r.phase==="reveal"&&now>r.rt+6000&&!r.busy){r.busy=1;try{if(++r.i>=r.ids.length)r.phase="final";else await mpRound(r)}finally{r.busy=0}}
+  const c=r.cur,rev=r.phase==="reveal"&&c,live=c&&(r.phase==="play"||rev);
+  return{ph:r.phase,i:r.i,n:r.ids.length,secs:r.secs,one:r.one,now,host:r.host===pid,code:r.code,names:r.names,
+    pl:P.map(p=>({n:p.name,s:p.score,d:!!p.ans})).sort((a,b)=>b.s-a.s),
+    cur:live?{preview:c.preview,start:c.start,t0:c.t0,...(rev?{title:c.title,artist:c.artist,album:c.album,cover:c.cover}:{})}:null};
+}
 const send=(res,code,obj)=>{res.writeHead(code,{"Content-Type":"application/json; charset=utf-8"});res.end(JSON.stringify(obj))};
 const server=http.createServer(async(req,res)=>{
   const u=new URL(req.url,"http://x"),q=u.searchParams,n=(q.get("a")||"").split("|").filter(Boolean),names=n.length?n:ARTISTS;
@@ -87,6 +112,41 @@ const server=http.createServer(async(req,res)=>{
     if(u.pathname==="/api/artist"){const a=await findArtist(q.get("name")||"");return a?send(res,200,a):send(res,404,{error:"Atlikėjas nerastas"})}
     if(u.pathname==="/api/artistsearch"){const l=((await dz("/search/artist?limit=6&q="+encodeURIComponent(q.get("q")||""),true)).data)||[];return send(res,200,l.map(a=>({id:a.id,name:a.name,picture:a.picture_small})))}
     if(u.pathname==="/api/stats"){const o={};for(const n of ARTISTS)o[n]=(await tracksOf(n)).length;return send(res,200,o)}
+    if(u.pathname==="/robots.txt"){res.writeHead(200,{"Content-Type":"text/plain"});return res.end("User-agent: *\nAllow: /\nSitemap: "+originOf(req)+"/sitemap.xml\n")}
+    if(u.pathname==="/sitemap.xml"){res.writeHead(200,{"Content-Type":"application/xml"});return res.end('<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>'+originOf(req)+'/</loc></url></urlset>')}
+    if(u.pathname==="/api/leaderboard")return send(res,200,await lbTop(q.get("w")==="all"?"lb:all":"lb:"+day()));
+    if(u.pathname==="/api/score"&&req.method==="POST"){
+      const ip=(req.headers["x-forwarded-for"]||req.socket.remoteAddress||"").split(",")[0],t=Date.now(),h=(hits.get(ip)||[]).filter(x=>t-x<6e4);
+      if(h.length>=40)return send(res,429,{error:"Per daug"});h.push(t);hits.set(ip,h);
+      const j=await readJ(req),n=String(j.n||"").replace(/[<>&"]/g,"").trim().slice(0,16),p=Math.round(+j.p);
+      if(n.length<2||!(p>=1&&p<=5))return send(res,400,{error:"Netinka"});await lbAdd(n,p);return send(res,200,{ok:1});
+    }
+    if(u.pathname==="/api/mp"&&req.method==="POST"){
+      const j=await readJ(req),a=j.a,nm=s=>String(s||"").trim().slice(0,16)||"Žaidėjas";
+      for(const[k,x]of rooms)if(Date.now()-x.made>72e5)rooms.delete(k);
+      if(a==="create"){
+        const nn=(j.names||[]).slice(0,30),p=await pool(nn.length?nn:ARTISTS),ids=p.map(x=>x.id).sort(()=>Math.random()-.5).slice(0,Math.min(20,+j.rounds||10));
+        if(!ids.length)return send(res,200,{err:"Nepavyko rasti dainų"});
+        const code=uid().slice(0,4).toUpperCase(),pid=uid();
+        rooms.set(code,{code,host:pid,names:nn.length?nn:ARTISTS,ids,i:0,secs:Math.max(1,Math.min(15,+j.secs||5)),one:!!j.one,phase:"lobby",players:{[pid]:{name:nm(j.name),score:0,ans:0}},made:Date.now()});
+        return send(res,200,{code,pid,names:nn});
+      }
+      const r=rooms.get(String(j.code||"").toUpperCase());if(!r)return send(res,200,{err:"Kambarys nerastas"});
+      if(a==="join"){if(r.phase!=="lobby")return send(res,200,{err:"Žaidimas jau prasidėjo"});if(Object.keys(r.players).length>=12)return send(res,200,{err:"Kambarys pilnas"});
+        const pid=uid();r.players[pid]={name:nm(j.name),score:0,ans:0};return send(res,200,{code:r.code,pid,names:r.names})}
+      if(a==="start"){if(r.host===j.pid&&r.phase==="lobby")await mpRound(r);return send(res,200,{ok:1})}
+      if(a==="guess"){const p=r.players[j.pid];if(!p||r.phase!=="play"||Date.now()<r.cur.t0||p.ans)return send(res,200,{ok:0});
+        const ok=String(j.tid)===String(r.cur.id)||(norm(j.title)===norm(r.cur.title)&&norm(j.artist)===norm(r.cur.artist));
+        if(ok){p.ans=2;p.score+=Math.max(10,100-Math.floor((Date.now()-r.cur.t0)/1000)*4)}else if(r.one)p.ans=1;
+        return send(res,200,{ok:ok?1:0,locked:!ok&&r.one?1:0})}
+      return send(res,200,await mpState(r,j.pid));
+    }
+    if(u.pathname==="/api/hl"){
+      const ex=q.get("ex"),c=(await pool(names)).filter(x=>String(x.id)!==ex);let t,f;
+      for(let k=0;k<6&&c.length;k++){t=c[Math.random()*c.length|0];f=await dz("/track/"+t.id,true);if(f&&f.rank)break}
+      if(!f||!f.rank)return send(res,500,{error:"Nepavyko"});
+      return send(res,200,{id:f.id,title:f.title_short||f.title,artist:t.artist,cover:f.album&&(f.album.cover_big||f.album.cover_medium),rank:f.rank});
+    }
     if(u.pathname==="/api/pool"){const p=await pool(names);return send(res,200,{t:p.map(x=>x.id),a:[...new Set(p.filter(x=>x.albumId).map(x=>x.albumId))]})}
     if(u.pathname==="/api/round")return send(res,200,await round(names,q.get("daily")==="1",q.get("mode")==="cover",q.get("id"),q.get("album")));
     if(u.pathname==="/api/search")return send(res,200,await search(q.get("q")||"",q.get("daily")==="1"?ARTISTS:names,q.get("album")==="1"));
