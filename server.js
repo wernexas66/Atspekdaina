@@ -57,7 +57,7 @@ const pmemo=new Map();
 const pool=async names=>{const k=names.join("|"),c=pmemo.get(k);if(c&&Date.now()-c.t<60000)return c.v;
   const v=(await Promise.all(names.map(tracksOf))).flat().sort((a,b)=>a.id-b.id);if(pmemo.size>40)pmemo.clear();pmemo.set(k,{t:Date.now(),v});return v};
 function seeded(str){let s=0;for(const c of str)s=(s*31+c.charCodeAt(0))>>>0;return()=>(s=(s*1664525+1013904223)>>>0)/4294967296}
-const mkOpts=(p,ans,names)=>{const pl=[...new Set([...p.map(x=>x.artist),...names,...ARTISTS])].filter(n=>norm(n)!==norm(ans));const o=[];
+const mkOpts=(p,ans,names)=>{const pl=[...new Set([...p.map(x=>x.artist),...names])].filter(n=>norm(n)!==norm(ans));const o=[];
   while(o.length<3&&pl.length)o.push(pl.splice(Math.random()*pl.length|0,1)[0]);o.push(ans);return o.sort(()=>Math.random()-.5)};
 async function round(names,daily,cover,id,album,yr,opts){
   let p=await pool(daily?ARTISTS:names);
@@ -87,8 +87,13 @@ const day=()=>new Date().toLocaleDateString("sv",{timeZone:"Europe/Vilnius"});
 const UP=process.env.UPSTASH_REDIS_REST_URL,UT=process.env.UPSTASH_REDIS_REST_TOKEN,mem={},hits=new Map();
 const rc=async a=>(await(await fetch(UP,{method:"POST",headers:{Authorization:"Bearer "+UT},body:JSON.stringify(a)})).json()).result;
 async function lbAdd(n,p){for(const k of["lb:all","lb:"+day()]){if(UP){await rc(["ZINCRBY",k,p,n]);if(k!=="lb:all")await rc(["EXPIRE",k,172800])}else{mem[k]=mem[k]||{};mem[k][n]=(mem[k][n]||0)+p}}}
-async function lbTop(k){if(UP){const r=await rc(["ZREVRANGE",k,0,9,"WITHSCORES"]),o=[];for(let i=0;i<r.length;i+=2)o.push({n:r[i],p:+r[i+1]});return o}
-  return Object.entries(mem[k]||{}).map(([n,p])=>({n,p})).sort((a,b)=>b.p-a.p).slice(0,10)}
+async function lbTop(k,n=10){if(UP){const r=await rc(["ZREVRANGE",k,0,n-1,"WITHSCORES"]),o=[];for(let i=0;i<r.length;i+=2)o.push({n:r[i],p:+r[i+1]});return o}
+  return Object.entries(mem[k]||{}).map(([n,p])=>({n,p})).sort((a,b)=>b.p-a.p).slice(0,n)}
+async function lbSet(n,p){if(UP)await rc(["ZADD","lb:all","GT",p,n]);else{mem["lb:all"]=mem["lb:all"]||{};mem["lb:all"][n]=Math.max(mem["lb:all"][n]||0,p)}}
+async function lbDel(n){for(const k of["lb:all","lb:"+day()]){if(UP)await rc(["ZREM",k,n]);else if(mem[k])delete mem[k][n]}}
+// draudžiami žodžiai: Render Environment kintamasis BANNED_WORDS (atskirti kableliais)
+const BAD=(process.env.BANNED_WORDS||"").split(",").map(x=>x.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]/g,"")).filter(Boolean);
+const isBad=n=>{const t=n.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]/g,"");return BAD.some(w=>t.includes(w))};
 const readJ=async r=>{let b="";for await(const c of r){b+=c;if(b.length>2000)break}try{return JSON.parse(b)}catch(e){return{}}};
 const originOf=req=>{let h=req.headers["x-forwarded-host"]||req.headers.host||"";if(!/^[a-z0-9.-]+(:\d+)?$/i.test(h))h="atspekdaina.eu";return(/^(localhost|127\.)/.test(h)?"http://":"https://")+h};
 // ---- multiplayer kambariai (atmintyje) ----
@@ -124,7 +129,15 @@ const server=http.createServer(async(req,res)=>{
       const ip=(req.headers["x-forwarded-for"]||req.socket.remoteAddress||"").split(",")[0],t=Date.now(),h=(hits.get(ip)||[]).filter(x=>t-x<6e4);
       if(h.length>=40)return send(res,429,{error:"Per daug"});h.push(t);hits.set(ip,h);
       const j=await readJ(req),n=String(j.n||"").replace(/[<>&"]/g,"").trim().slice(0,16),p=Math.round(+j.p);
-      if(n.length<2||!(p>=1&&p<=5))return send(res,400,{error:"Netinka"});await lbAdd(n,p);return send(res,200,{ok:1});
+      if(n.length<2||isBad(n))return send(res,400,{error:"Netinka"});
+      if(j.sync){await lbSet(n,Math.min(100000,Math.max(0,p)));return send(res,200,{ok:1})}
+      if(!(p>=1&&p<=5))return send(res,400,{error:"Netinka"});await lbAdd(n,p);return send(res,200,{ok:1});
+    }
+    if(u.pathname==="/admin"){try{res.writeHead(200,{"Content-Type":"text/html; charset=utf-8"});return res.end(fs.readFileSync(path.join(__dirname,"public","admin.html")))}catch(e){return send(res,404,{error:"Nerasta"})}}
+    if(u.pathname==="/api/admin"&&req.method==="POST"){
+      const j=await readJ(req);if(!process.env.ADMIN_KEY||j.key!==process.env.ADMIN_KEY)return send(res,403,{error:"Neleidžiama (patikrink raktą)"});
+      if(j.del)await lbDel(String(j.del));
+      return send(res,200,{all:await lbTop("lb:all",200),day:await lbTop("lb:"+day(),200)});
     }
     if(u.pathname==="/api/mp"&&req.method==="POST"){
       const j=await readJ(req),a=j.a,nm=s=>String(s||"").trim().slice(0,16)||"Žaidėjas";
@@ -156,7 +169,7 @@ const server=http.createServer(async(req,res)=>{
       }
       for(let k=0;k<6&&c.length;k++){t=c[Math.random()*c.length|0];f=await dz("/track/"+t.id,true);if(f&&f.rank)break}
       if(!f||!f.rank)return send(res,500,{error:"Nepavyko"});
-      return send(res,200,{id:f.id,title:f.title_short||f.title,artist:t.artist,cover:f.album&&(f.album.cover_big||f.album.cover_medium),rank:f.rank,metric:"Deezer populiarumo reitingas"});
+      return send(res,200,{id:f.id,title:f.title_short||f.title,artist:t.artist,cover:f.album&&(f.album.cover_big||f.album.cover_medium),rank:f.rank,metric:"Deezer populiarumo balas"});
     }
     if(u.pathname==="/api/pool"){const p=await pool(names);return send(res,200,{t:p.map(x=>x.id),a:[...new Set(p.filter(x=>x.albumId).map(x=>x.albumId))]})}
     if(u.pathname==="/api/round")return send(res,200,await round(names,q.get("daily")==="1",q.get("mode")==="cover",q.get("id"),q.get("album"),q.get("year")==="1",q.get("opts")==="1"));
