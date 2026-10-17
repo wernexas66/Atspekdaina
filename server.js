@@ -60,6 +60,7 @@ function seeded(str){let s=0;for(const c of str)s=(s*31+c.charCodeAt(0))>>>0;ret
 const mkOpts=(p,ans,names)=>{const pl=[...new Set([...p.map(x=>x.artist),...names])].filter(n=>norm(n)!==norm(ans));const o=[];
   while(o.length<3&&pl.length)o.push(pl.splice(Math.random()*pl.length|0,1)[0]);o.push(ans);return o.sort(()=>Math.random()-.5)};
 async function round(names,daily,cover,id,album,yr,opts){
+  if(opts&&new Set(names).size<4)throw new Error("Reikia bent 4 atlikėjų");
   let p=await pool(daily?ARTISTS:names);
   if(cover){p=p.filter(t=>t.albumId&&t.album&&t.cover);if(!p.length)throw new Error("Nepavyko rasti albumų");
     const t=(album&&p.find(x=>String(x.albumId)===album))||p[Math.floor(Math.random()*p.length)];return{id:t.id,title:t.title,artist:t.artist,album:t.album,albumId:t.albumId,cover:t.cover,coverBig:t.coverBig||t.cover};}
@@ -82,7 +83,7 @@ async function search(q,names,album){
   return(await pool(names)).filter(t=>norm(t.title+" "+t.artist).includes(v)).slice(0,8);
 }
 // ---- lyderių lentelė (nuolatinė, jei nustatytas Upstash Redis; kitaip tik atmintyje) ----
-const LF=process.env.HL_SOURCE==="lastfm"?process.env.LASTFM_API_KEY:"",LM=process.env.LASTFM_METRIC==="playcount"?"playcount":"listeners";
+const LF=process.env.LASTFM_API_KEY||"",LM=process.env.LASTFM_METRIC==="listeners"?"listeners":"playcount";
 const day=()=>new Date().toLocaleDateString("sv",{timeZone:"Europe/Vilnius"});
 const UP=process.env.UPSTASH_REDIS_REST_URL,UT=process.env.UPSTASH_REDIS_REST_TOKEN,mem={},hits=new Map();
 const rc=async a=>(await(await fetch(UP,{method:"POST",headers:{Authorization:"Bearer "+UT},body:JSON.stringify(a)})).json()).result;
@@ -114,6 +115,8 @@ async function mpState(r,pid){
     pl:P.map(p=>({n:p.name,s:p.score,d:!!p.ans})).sort((a,b)=>b.s-a.s),
     cur:live?{preview:c.preview,start:c.start,t0:c.t0,...(rev?{title:c.title,artist:c.artist,album:c.album,cover:c.cover}:{})}:null};
 }
+const VER="v6";
+const ap=n=>[path.join(__dirname,"public",n),path.join(__dirname,n)].find(p=>fs.existsSync(p))||path.join(__dirname,"public",n);
 const send=(res,code,obj)=>{res.writeHead(code,{"Content-Type":"application/json; charset=utf-8"});res.end(JSON.stringify(obj))};
 const server=http.createServer(async(req,res)=>{
   const u=new URL(req.url,"http://x"),q=u.searchParams,n=(q.get("a")||"").split("|").filter(Boolean),names=n.length?n:ARTISTS;
@@ -133,9 +136,10 @@ const server=http.createServer(async(req,res)=>{
       if(j.sync){await lbSet(n,Math.min(100000,Math.max(0,p)));return send(res,200,{ok:1})}
       if(!(p>=1&&p<=5))return send(res,400,{error:"Netinka"});await lbAdd(n,p);return send(res,200,{ok:1});
     }
-    if(u.pathname==="/admin"){try{res.writeHead(200,{"Content-Type":"text/html; charset=utf-8"});return res.end(fs.readFileSync(path.join(__dirname,"public","admin.html")))}catch(e){return send(res,404,{error:"Nerasta"})}}
+    if(u.pathname==="/admin"){try{res.writeHead(200,{"Content-Type":"text/html; charset=utf-8"});return res.end(fs.readFileSync(ap("admin.html")))}catch(e){return send(res,404,{error:"Nerasta"})}}
     if(u.pathname==="/api/admin"&&req.method==="POST"){
-      const j=await readJ(req);if(!process.env.ADMIN_KEY||j.key!==process.env.ADMIN_KEY)return send(res,403,{error:"Neleidžiama (patikrink raktą)"});
+      const j=await readJ(req);if(!process.env.ADMIN_KEY)return send(res,403,{error:"Serveryje nenustatytas ADMIN_KEY (Render Environment)"});
+      if(j.key!==process.env.ADMIN_KEY)return send(res,403,{error:"Neteisingas raktas"});
       if(j.del)await lbDel(String(j.del));
       return send(res,200,{all:await lbTop("lb:all",200),day:await lbTop("lb:"+day(),200)});
     }
@@ -161,25 +165,31 @@ const server=http.createServer(async(req,res)=>{
     }
     if(u.pathname==="/api/hl"){
       const ex=q.get("ex"),c=(await pool(names)).filter(x=>String(x.id)!==ex);let t,f;
-      if(LF&&c.length)for(let k=0;k<8;k++){
+      const want=q.get("m")||"",needLF=want.startsWith("Last.fm");
+      if(LF&&c.length&&(!want||needLF))for(let k=0;k<14;k++){
         t=c[Math.random()*c.length|0];
         try{const r=await(await fetch(`https://ws.audioscrobbler.com/2.0/?method=track.getInfo&autocorrect=1&format=json&api_key=${LF}&artist=${encodeURIComponent(t.artist)}&track=${encodeURIComponent(t.title)}`)).json();
           const L=+(r.track&&r.track[LM]);
           if(L>0)return send(res,200,{id:t.id,title:t.title,artist:t.artist,cover:t.coverBig||t.cover,rank:L,metric:LM==="playcount"?"Last.fm paleidimų skaičius (viso laiko)":"Last.fm klausytojų skaičius (viso laiko)"});}catch(e){}
       }
+      if(needLF)return send(res,500,{error:"Last.fm duomenų nerasta"});
       for(let k=0;k<6&&c.length;k++){t=c[Math.random()*c.length|0];f=await dz("/track/"+t.id,true);if(f&&f.rank)break}
       if(!f||!f.rank)return send(res,500,{error:"Nepavyko"});
       return send(res,200,{id:f.id,title:f.title_short||f.title,artist:t.artist,cover:f.album&&(f.album.cover_big||f.album.cover_medium),rank:f.rank,metric:"Deezer populiarumo balas"});
     }
+    if(u.pathname==="/api/version"){let iv=null;try{iv=(fs.readFileSync(ap("index.html"),"utf8").match(/app-version" content="([^"]+)"/)||[])[1]||null}catch(e){}
+      return send(res,200,{server:VER,index:iv,admin:fs.existsSync(ap("admin.html")),saugykla:UP?"Upstash (nuolatinė)":"atmintis (išsivalo)",lastfm:!!LF})}
+    if(u.pathname==="/api/me"){const n=String(q.get("n")||"").slice(0,16);let sc=0;
+      if(UP){const r=await rc(["ZSCORE","lb:all",n]);sc=r==null?0:+r}else sc=(mem["lb:all"]||{})[n]||0;return send(res,200,{p:sc})}
     if(u.pathname==="/api/pool"){const p=await pool(names);return send(res,200,{t:p.map(x=>x.id),a:[...new Set(p.filter(x=>x.albumId).map(x=>x.albumId))]})}
     if(u.pathname==="/api/round")return send(res,200,await round(names,q.get("daily")==="1",q.get("mode")==="cover",q.get("id"),q.get("album"),q.get("year")==="1",q.get("opts")==="1"));
     if(u.pathname==="/api/search")return send(res,200,await search(q.get("q")||"",q.get("daily")==="1"?ARTISTS:names,q.get("album")==="1"));
-    if(u.pathname==="/og.png"){try{const d=fs.readFileSync(path.join(__dirname,"public","og.png"));res.writeHead(200,{"Content-Type":"image/png","Cache-Control":"public, max-age=86400"});return res.end(d)}catch(e){return send(res,404,{error:"Nerasta"})}}
+    if(u.pathname==="/og.png"){try{const d=fs.readFileSync(ap("og.png"));res.writeHead(200,{"Content-Type":"image/png","Cache-Control":"public, max-age=86400"});return res.end(d)}catch(e){return send(res,404,{error:"Nerasta"})}}
     // puslapio adresas įrašomas į nuorodų peržiūros (og:) žymas pagal tai, kuriuo adresu atidaryta svetainė
     let host=req.headers["x-forwarded-host"]||req.headers.host||"";if(!/^[a-z0-9.-]+(:\d+)?$/i.test(host))host="atspekdaina.eu";
     const origin=(/^(localhost|127\.)/.test(host)?"http://":"https://")+host;
     let H=HTMLS.get(origin);
-    if(!H){try{const raw=Buffer.from(fs.readFileSync(path.join(__dirname,"public","index.html"),"utf8").split("__ORIGIN__").join(origin));H={raw,gz:require("zlib").gzipSync(raw)};if(HTMLS.size>20)HTMLS.clear();HTMLS.set(origin,H)}catch(e){return send(res,404,{error:"Nerasta"})}}
+    if(!H){try{const raw=Buffer.from(fs.readFileSync(ap("index.html"),"utf8").split("__ORIGIN__").join(origin));H={raw,gz:require("zlib").gzipSync(raw)};if(HTMLS.size>20)HTMLS.clear();HTMLS.set(origin,H)}catch(e){return send(res,404,{error:"Nerasta"})}}
     const gz=/gzip/.test(req.headers["accept-encoding"]||"");
     res.writeHead(200,{"Content-Type":"text/html; charset=utf-8","Cache-Control":"no-cache",...(gz?{"Content-Encoding":"gzip"}:{})});res.end(gz?H.gz:H.raw);
   }catch(e){send(res,500,{error:e.message})}
